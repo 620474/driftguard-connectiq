@@ -31,19 +31,29 @@ See: `docs/CURRENT_TASK.md`.
 - Added local quality-aware decoupling: configurable 15-minute warm-up, valid
   30-minute sample period, 80% data-quality and 15% power-variability gates,
   and `NOT_READY` / `NOT_STEADY` / `VALID` states.
-- Six simulator tests passed, including known 10.0% drift, warm-up, missing
-  readings, stopped/coasting data, sparse data, and power-variability gating.
+- Review fixes: the result no longer flips from VALID to NOT_STEADY later in
+  the ride; paused timer is ignored; warm-up uses timer time; rejected periods
+  restart collection; variability uses 30 s averages; speed filter removed;
+  engine resets on `onTimerReset`.
+- Redesigned field: large drift value with STABLE / WATCH / HIGH DRIFT pill,
+  progress bar before a result, Pw:HR row, power / HR columns; medium and small
+  layouts; light and dark backgrounds.
+- Full page adds a per-minute Pw:HR trend chart (last 60 min, first-half
+  baseline) and power (3 s average) / HR zone gauges from the Garmin user
+  profile zones (`UserProfile` permission). Pw:HR number is per full minute.
+- Seventeen simulator tests passed. Full-page layout checked by screenshot in the
+  Edge 1050 simulator (warm-up and VALID states, chart and zone gauges).
 
 ## Next
 
-1. Manually inspect the Milestone 2 full-size field and simulated activity playback on Edge 1050.
-2. Review Milestone 2 before authorizing any later work.
+1. Check medium/small layouts and a FIT playback in the simulator.
+2. Validate the 15% variability threshold on real outdoor ride files.
+3. Review Milestone 2 before authorizing any later work.
 
 ## Known uncertainties
 
-- Automated visual inspection failed: Windows capture `SetIsBorderRequired`
-  returned `0x80004002`; UI input reported unavailable geometry.
-- Simulator tests reported 2 passed / 0 errors, but the runner returned exit code 1.
+- The simulator test runner returns exit code 1 despite a passing summary.
+- The 15% CV threshold on 30 s averages is not yet validated on real rides.
 - Physical Edge behavior has not been tested.
 - Sensor-disconnection timing and actual activity lifecycle need physical-device verification.
 - Physical-device testing must validate the timer and speed semantics used by the
