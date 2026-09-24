@@ -60,3 +60,11 @@ No drift calculation, backend, AI or monetization yet.
 ```
 
 The actual Garmin project files will be generated after the local Windows Garmin SDK/toolchain is verified.
+
+## Releases
+
+Pushes to `main` run semantic-release in GitHub Actions. It creates version tags
+and GitHub Releases from [Conventional Commits](https://www.conventionalcommits.org/):
+`fix:` creates a patch release, `feat:` a minor release, and a `BREAKING CHANGE:`
+footer a major release. `docs:`, `chore:`, and other non-release commit types do
+not publish a release.

@@ -4,7 +4,8 @@ Last updated: 2026-09-24
 
 ## Current phase
 
-Repository setup / Milestone 1 preparation.
+Milestone 1 implemented; Edge 1050 build and simulator tests pass.
+Manual visual/live-playback acceptance remains pending because desktop capture failed.
 
 ## Current milestone
 
@@ -20,21 +21,25 @@ See: `docs/CURRENT_TASK.md`.
 - Claude reviewer role defined.
 - MVP scope defined.
 - Initial architecture and decisions documented.
+- Verified installed Garmin SDK 9.2.0 and Edge 1050 device profile.
+- Created the Data Field under `garmin-app/` from Garmin SDK templates.
+- Implemented current power / HR / instantaneous Pw:HR and missing-value handling.
+- Strict compiler build passed with no warnings.
+- Loaded the field in Edge 1050 simulator (device API 6.0.0).
+- Two simulator tests passed: normal readings, zero power/HR, missing and negative values.
 
 ## Next
 
-1. Clone the repository to the Windows development machine.
-2. Install / verify Garmin Connect IQ development environment.
-3. Create the Garmin Data Field project under `garmin-app/`.
-4. Build.
-5. Run in Edge 1050 Simulator.
-6. Display Power / HR / Pw:HR.
-7. Stop and review before moving to Milestone 2.
+1. Manually inspect the full-size field and simulated activity playback on Edge 1050.
+2. Review Milestone 1 before authorizing any Milestone 2 work.
 
 ## Known uncertainties
 
-- Exact local Windows Connect IQ SDK / SDK Manager state has not yet been inspected by the coding agent.
+- Automated visual inspection failed: Windows capture `SetIsBorderRequired`
+  returned `0x80004002`; UI input reported unavailable geometry.
+- Simulator tests reported 2 passed / 0 errors, but the runner returned exit code 1.
 - Physical Edge behavior has not been tested.
+- Sensor-disconnection timing and actual activity lifecycle need physical-device verification.
 - Final drift formula / validity rules are intentionally not frozen yet.
 
 ## Not started
