@@ -1,15 +1,15 @@
 # Project Status
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
 ## Current phase
 
-Milestone 2 implemented; Edge 1050 build and simulator tests pass.
-Manual visual/live-playback acceptance remains pending because desktop capture failed.
+Milestone 3 implemented; Edge 1050 build and 16 simulator tests pass.
+Physical-device testing and calibration on real ride files are pending.
 
 ## Current milestone
 
-**Milestone 2 — Quality-aware aerobic decoupling**
+**Milestone 3 — Long-ride live drift**
 
 See: `docs/CURRENT_TASK.md`.
 
@@ -43,21 +43,26 @@ See: `docs/CURRENT_TASK.md`.
   profile zones (`UserProfile` permission). Pw:HR number is per full minute.
 - Seventeen simulator tests passed. Full-page layout checked by screenshot in the
   Edge 1050 simulator (warm-up and VALID states, chart and zone gauges).
+- Milestone 3: minute-based steady filter (valid data, ±20% of median power,
+  2-minute HR recovery), live RIDE drift over the whole ride (constant-memory
+  buckets) and LAST 60 MIN drift, STEADY TIME, tap to switch the main metric,
+  chart marks non-steady minutes. 16 simulator tests; tap and both metrics
+  checked by screenshot with a synthetic 2.5 h ride.
 
 ## Next
 
-1. Check medium/small layouts and a FIT playback in the simulator.
-2. Validate the 15% variability threshold on real outdoor ride files.
-3. Review Milestone 2 before authorizing any later work.
+1. Ride with the sideloaded field on the Edge 1050; check auto-pause, sensor
+   dropouts, tap in gloves and readability.
+2. Calibrate the steady filter and the 40 / 70% / 48-minute gates on real FIT
+   files; compare RIDE drift with Intervals.icu on steady Z2 rides.
+3. Check medium/small layouts in the simulator.
 
 ## Known uncertainties
 
 - The simulator test runner returns exit code 1 despite a passing summary.
-- The 15% CV threshold on 30 s averages is not yet validated on real rides.
-- Physical Edge behavior has not been tested.
-- Sensor-disconnection timing and actual activity lifecycle need physical-device verification.
-- Physical-device testing must validate the timer and speed semantics used by the
-  sample filter, especially indoor speed-null and auto-pause behavior.
+- All steady-minute and validity thresholds are heuristics, not yet calibrated.
+- The half-way split resolution becomes one bucket (2 min) after 4 h of riding.
+- Physical Edge behavior (onTap, auto-pause, sensor dropouts) has not been tested.
 
 ## Not started
 

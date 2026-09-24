@@ -1,9 +1,9 @@
-# DriftGuard — Milestone 2
+# DriftGuard — Milestone 3
 
-Edge 1050 Connect IQ Data Field based on the installed Garmin SDK templates.
-Displays current power, HR, instantaneous power / HR, and a local quality-aware
-aerobic-decoupling result. No settings UI, stored ride history, permissions, or
-network access.
+Edge 1050 Connect IQ Data Field: live aerobic decoupling (Pw:HR drift) for the
+whole ride and the last hour, a per-minute Pw:HR chart, and power / HR zone
+gauges. Fully local: no settings UI, no network. Uses the `UserProfile`
+permission to read the rider's zones.
 
 ## Windows build
 
@@ -46,72 +46,74 @@ java -classpath "$sdk\bin\monkeybrains.jar" com.garmin.monkeybrains.monkeydodeux
 
 This is the entry point used by Garmin's `monkeydo.bat`. A normal run remains
 attached until the field exits. Reload the normal PRG after running tests.
+The test runner returns exit code 1 despite a passing summary; rely on the
+summary. Clicking the simulated screen delivers `onTap`.
 
-See Layouts below for the field sizes. Use the simulator's Simulation menu
-to supply activity/FIT data and check changing readings and sensor dropout.
+## Sideloading
 
-## Data policy and verification
+Connect the Edge by USB, copy `bin/DriftGuard.prg` to `Garmin\Apps` on the
+device, disconnect, then add the Connect IQ field to a data screen.
 
-`compute(Activity.Info)` reads currentPower, currentHeartRate, timerTime and
-timerState on every sample. Missing/negative power displays `--`; zero power is
-displayed. Missing/zero/negative HR displays `--` and disables the ratio. Missing readings immediately replace
-previous text. The ratio uses floating-point division and two decimal places.
-Garmin documents both inputs as nullable integers:
-[Activity.Info](https://developer.garmin.com/connect-iq/api-docs/Toybox/Activity/Info.html),
-[DataField.compute](https://developer.garmin.com/connect-iq/api-docs/Toybox/WatchUi/DataField.html).
+## Readings
 
-2026-09-24: Edge 1050 simulator tests passed (11 passed, 0 failed, 0 errors).
-The runner returns exit code 1 despite its passing summary; rely on the summary.
-Test functions are excluded from normal builds.
+`compute(Activity.Info)` reads currentPower, currentHeartRate and timerState
+every second. Missing readings immediately replace previous text with `--`.
 
-The simulator loaded Edge 1050 (6.0.0). Automated visual inspection was blocked
-by Windows capture error `SetIsBorderRequired: 0x80004002` and unavailable input
-geometry. Live activity playback and layout appearance still need manual review.
-Physical-device checks remain for sensor-disconnection timing (the app can clear
-only values Garmin reports as missing), activity lifecycle, and readability.
+- Power is a 3-second average (1 s power is too jumpy for zones); a dropout
+  clears it and restarts the average. Zero power is a real reading.
+- HR of zero or less is treated as missing.
+- The Pw:HR number is the last full minute, because instantaneous power / HR is
+  noise (HR lags power by tens of seconds).
 
 ## Aerobic decoupling
 
-`DriftEngine` owns the Milestone 2 calculation; `DriftGuardView` only passes it
-activity data and renders its state. The default warm-up is 15 minutes and can
-be changed only in code by passing milliseconds to `new DriftEngine(warmupMs)`.
-There is deliberately no settings UI yet.
+The calculation contract is in `docs/CURRENT_TASK.md`. In short:
 
-Warm-up is measured in timer time, so pauses do not count. Samples with a stopped
-timer are ignored. While the timer runs, a sample is valid when power and HR are
-positive; missing readings and coasting (zero power) are invalid. Speed is not
-used. A period is 30 minutes of valid samples split into two 15-minute halves.
-Each half's efficiency is average power divided by average HR, and drift is the
-percentage decrease from the first half to the second.
+- `DriftEngine` collects one-minute records of running timer (pauses are
+  skipped) and decides for each post-warm-up minute whether it is **steady**:
+  ≥ 48 valid seconds, power within ±20% of the ride's median minute, and not in
+  the 2-minute HR recovery after a non-steady minute.
+- **RIDE** drift uses every steady minute of the ride (`RideBuckets`, 240
+  buckets merged pairwise when full, so memory is constant for any duration).
+- **LAST 60** uses the steady minutes of the last hour (`EfficiencyHistory`,
+  a 60-minute ring that also feeds the chart).
+- Both split their steady time into halves and compare average power / average
+  HR (`DriftMath.halves`), the same definition Intervals.icu uses.
+- Everything is recomputed once per minute; the per-second work is a few adds.
 
-A period is rejected (`NOT STEADY`) when more than 20% of its samples are invalid
-or when the coefficient of variation of its 30-second power averages exceeds 15%;
-collection then starts over. The first accepted period is the ride's result and
-stays on screen until the activity is saved or discarded (`onTimerReset`).
+The warm-up (default 15 minutes) can be changed only in code:
+`new DriftEngine(warmupMinutes)`. All thresholds are heuristics to be
+calibrated on real ride files.
 
 ## Layouts
 
-- Full page (height ≥ 500 px): AEROBIC DRIFT label, large drift value with a
-  colored STABLE / WATCH / HIGH DRIFT pill (or state and progress bar before a
-  result), Pw:HR trend chart, and power / heart-rate zone gauges.
+Tap anywhere on the field to switch the main metric between RIDE and LAST 60.
+The choice is kept in `Application.Storage`. Nothing depends on the tap: the
+other metric is always shown too.
 
-Power is a 3-second average (1 s power is too jumpy for zones); a dropout clears
-it and restarts the average. The Pw:HR number is the last full minute, because
-instantaneous power / HR is noise (HR lags power by tens of seconds).
+- Full page (height ≥ 500 px): RIDE / LAST 60 tabs; large drift with a
+  STABLE / WATCH / HIGH DRIFT pill (or state, progress bar and what is missing);
+  the other metric and STEADY TIME; the Pw:HR chart; power and HR zone gauges.
+- Medium field (150–499 px): selected metric, then the other metric and steady time.
+- Small field (< 150 px): value or progress and the metric with its state.
+
+The chart plots Pw:HR per minute for the last 60 minutes. Steady minutes are
+drawn in the metric's color, other minutes muted, and minutes with under 30 s
+of valid data are gaps. The dashed line is the selected metric's first-half
+baseline. The vertical scale follows the steady minutes and spans at least 0.2,
+so warm-up, climbs and minute-to-minute noise do not dominate it.
 
 Zone gauges use the rider's own zones from the Garmin user profile
 (`UserProfile.getHeartRateZones2` / `getPowerZones` for cycling, API 5.2.2+, with
-`getHeartRateZones` and FTP-based Coggan zones as fallbacks). This needs the
-`UserProfile` permission. Every zone gets the same width; the current zone is
-drawn thicker with a marker at the value. Without valid zones the gauge shows
-NO ZONES. Zones reload on `onTimerReset`.
-
-The trend chart plots Pw:HR per minute of running timer for the last 60 minutes
-(`EfficiencyHistory`, a fixed 60-point ring buffer). A minute with under 30 s of
-valid data is a gap. Once a result exists, a dashed line marks the first-half
-baseline and the line takes the STABLE / WATCH / HIGH DRIFT color. The vertical
-scale spans at least 0.2 so minute-to-minute noise does not look like drift.
-- Medium field (150–499 px): drift value or progress, one power / HR / Pw:HR line.
-- Small field (< 150 px): value or progress minutes and a colored state word.
+`getHeartRateZones` and FTP-based Coggan zones as fallbacks). Every zone gets the
+same width; the current zone is drawn thicker with a marker at the value.
+Without valid zones the gauge shows NO ZONES. Zones reload on `onTimerReset`.
 
 Colors follow the field background (light or dark).
+
+## Verification
+
+2026-09-25: 16 Edge 1050 simulator tests pass. The full-page layout, both
+metrics and the tap toggle were checked by screenshot with a synthetic 2.5 h
+ride. Still to verify on a physical Edge: sensor-dropout timing, auto-pause,
+activity lifecycle, readability, and the thresholds on real ride files.

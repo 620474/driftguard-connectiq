@@ -8,6 +8,7 @@ class DriftGuardApp extends Application.AppBase {
     }
 
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        return [new DriftGuardView()];
+        var view = new DriftGuardView();
+        return [view, new DriftGuardDelegate(view)];
     }
 }

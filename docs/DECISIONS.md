@@ -47,6 +47,22 @@ Initial release may be free.
 
 Only after real usage should we add paid unlock / external payment experiments.
 
+## 2026-09-25 — Live drift for the whole ride and the last hour
+
+The fixed 15–45 minute result is replaced by two live metrics: RIDE drift over
+all steady minutes and LAST 60 MIN drift. EF is average power / average HR, the
+Intervals.icu definition, so results can be compared after a ride.
+
+Only steady minutes count (valid data, power within ±20% of the ride median, not
+in the 2-minute HR recovery after a non-steady minute). This favours validity
+over matching Intervals.icu on hilly rides.
+
+The main metric is switched by tapping the field; both stay visible, so the
+product also works without touch.
+
+STABLE < 5% follows common practice; the 10% HIGH DRIFT boundary and all
+steady-filter thresholds are product heuristics to be calibrated on real rides.
+
 ## 2026-09-24 — Claude reviews, Codex implements
 
 - Codex: implementation agent with repository / terminal access.

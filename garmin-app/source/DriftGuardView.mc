@@ -1,4 +1,5 @@
 import Toybox.Activity;
+import Toybox.Application;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.UserProfile;
@@ -6,6 +7,7 @@ import Toybox.WatchUi;
 
 class DriftGuardView extends WatchUi.DataField {
     private const POWER_AVERAGE_SECONDS = 3;
+    private const METRIC_STORAGE_KEY = "metric";
     // Garmin's usual zone colors: gray, blue, green, orange, red, then yellow/purple
     // for 7-zone power models (inserted so the order stays cool to hot).
     private const ZONE_COLORS_5 = [0x8C8C8C, 0x2F7FE0, 0x2EA84A, 0xF08A00, 0xE0282E] as Array<Number>;
@@ -16,9 +18,9 @@ class DriftGuardView extends WatchUi.DataField {
     var powerText as String = "--";
     var heartRateText as String = "--";
     var ratioText as String = "--";
-    var driftText as String = "--";
     var driftEngine as DriftEngine;
-    var history as EfficiencyHistory;
+    // The metric shown large; tapping the field switches it.
+    var metric as DriftMetric = METRIC_RIDE;
 
     // 3 s average power, as on Garmin's own power field; 1 s power is too jumpy for zones.
     var power3s as Number? = null;
@@ -41,8 +43,8 @@ class DriftGuardView extends WatchUi.DataField {
     function initialize() {
         DataField.initialize();
         driftEngine = new DriftEngine(null);
-        history = new EfficiencyHistory();
         loadZones();
+        loadMetric();
     }
 
     function compute(info as Activity.Info) as Void {
@@ -77,47 +79,33 @@ class DriftGuardView extends WatchUi.DataField {
         }
 
         var isTimerRunning = info.timerState == Activity.TIMER_STATE_ON;
-        driftEngine.addSample(info.timerTime, power, currentHeartRate, isTimerRunning);
-        history.addSample(power, currentHeartRate, isTimerRunning);
+        driftEngine.addSample(power, currentHeartRate, isTimerRunning);
         // Instant power / HR is noise (HR lags power); show the last full minute instead.
-        var ratio = history.getLatest();
+        var ratio = driftEngine.getHistory().getLatest();
         ratioText = ratio == null ? "--" : ratio.format("%.2f");
-        var drift = driftEngine.getDriftPercent();
-        driftText = drift == null ? "--" : drift.format("%.1f");
     }
 
     // Called when the activity is saved or discarded: the next ride starts clean.
     function onTimerReset() as Void {
         driftEngine.reset();
-        history.reset();
         mPowerWindowCount = 0;
-        driftText = "--";
         ratioText = "--";
         // Zones may have been edited in Garmin Connect since the field started.
         loadZones();
     }
 
-    private function loadZones() as Void {
-        var heartRateThresholds = null;
-        if (UserProfile has :getHeartRateZones2) {
-            heartRateThresholds = UserProfile.getHeartRateZones2(Activity.SPORT_CYCLING);
-        } else {
-            heartRateThresholds = UserProfile.getHeartRateZones(UserProfile.HR_ZONE_SPORT_BIKING);
+    function toggleMetric() as Void {
+        metric = metric == METRIC_RIDE ? METRIC_LAST_60 : METRIC_RIDE;
+        try {
+            Application.Storage.setValue(METRIC_STORAGE_KEY, metric as Number);
+        } catch (e) {
+            // Remembering the choice is a convenience; the toggle still works.
         }
-        heartRateZones = Zones.validated(heartRateThresholds as Array<Number>?);
+    }
 
-        var powerThresholds = null;
-        if (UserProfile has :getPowerZones) {
-            powerThresholds = Zones.validated(
-                UserProfile.getPowerZones(Activity.SPORT_CYCLING) as Array<Number>?);
-        }
-        if (powerThresholds == null && UserProfile has :getFunctionalThresholdPower) {
-            var ftp = UserProfile.getFunctionalThresholdPower(Activity.SPORT_CYCLING);
-            if (ftp != null && ftp > 0) {
-                powerThresholds = Zones.fromFtp(ftp);
-            }
-        }
-        powerZones = powerThresholds;
+    function driftTextFor(forMetric as DriftMetric) as String {
+        var drift = driftEngine.getDriftPercent(forMetric);
+        return drift == null ? "--" : drift.format("%.1f");
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
@@ -135,23 +123,36 @@ class DriftGuardView extends WatchUi.DataField {
         }
     }
 
-    // Full page: hero drift, status pill, Pw:HR trend chart, power and HR columns.
+    // Full page: metric tabs, hero drift, the other metric and steady time,
+    // Pw:HR trend chart, power and HR zone gauges.
     private function drawFull(dc as Graphics.Dc) as Void {
         var width = dc.getWidth();
         var height = dc.getHeight();
         var center = width / 2;
         var margin = width / 12;
 
-        drawLabel(dc, center, height * 0.05, "AEROBIC DRIFT", Graphics.TEXT_JUSTIFY_CENTER);
-        drawHero(dc, center, height * 0.20, height * 0.345, Graphics.FONT_NUMBER_THAI_HOT,
+        drawTabs(dc, center, height * 0.05);
+        drawHero(dc, center, height * 0.195, height * 0.325, Graphics.FONT_NUMBER_THAI_HOT,
             Graphics.FONT_LARGE, width - 2 * margin);
 
-        drawLabel(dc, margin, height * 0.44, "PW:HR · 1 MIN", Graphics.TEXT_JUSTIFY_LEFT);
+        var left = width / 4;
+        var right = width * 3 / 4;
+        var other = otherMetric();
+        drawLabel(dc, left, height * 0.39, metricName(other), Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc, right, height * 0.39, "STEADY TIME", Graphics.TEXT_JUSTIFY_CENTER);
+        var summaryAlign = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        dc.setColor(stateColor(other), Graphics.COLOR_TRANSPARENT);
+        dc.drawText(left, height * 0.425, Graphics.FONT_MEDIUM, summaryText(other), summaryAlign);
         dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(width - margin, height * 0.44, Graphics.FONT_MEDIUM, ratioText,
+        dc.drawText(right, height * 0.425, Graphics.FONT_MEDIUM,
+            durationText(driftEngine.getSteadySeconds()), summaryAlign);
+
+        drawLabel(dc, margin, height * 0.49, "PW:HR · 1 MIN", Graphics.TEXT_JUSTIFY_LEFT);
+        dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(width - margin, height * 0.49, Graphics.FONT_SMALL, ratioText,
             Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
-        var chartTop = (height * 0.48).toNumber();
-        drawTrend(dc, margin, chartTop, width - 2 * margin, (height * 0.64).toNumber() - chartTop);
+        var chartTop = (height * 0.52).toNumber();
+        drawTrend(dc, margin, chartTop, width - 2 * margin, (height * 0.645).toNumber() - chartTop);
         drawRule(dc, margin, width - margin, height * 0.67);
 
         var gaugeWidth = width - 2 * margin;
@@ -159,6 +160,214 @@ class DriftGuardView extends WatchUi.DataField {
             "W", power3s, powerZones);
         drawZoneGauge(dc, margin, (height * 0.845).toNumber(), gaugeWidth, "HEART RATE",
             heartRateText, "BPM", heartRate, heartRateZones);
+    }
+
+    // Half-page style field: selected metric large, the other metric and steady time below.
+    private function drawMedium(dc as Graphics.Dc) as Void {
+        var width = dc.getWidth();
+        var height = dc.getHeight();
+        var center = width / 2;
+        var heroFont = height >= 300 ? Graphics.FONT_NUMBER_HOT : Graphics.FONT_NUMBER_MEDIUM;
+        var titleFont = height >= 300 ? Graphics.FONT_LARGE : Graphics.FONT_MEDIUM;
+
+        drawLabel(dc, center, height * 0.10, metricName(metric) + " DRIFT",
+            Graphics.TEXT_JUSTIFY_CENTER);
+        drawHero(dc, center, height * 0.40, height * 0.68, heroFont, titleFont, width * 3 / 4);
+        var other = otherMetric();
+        drawLabel(dc, center, height * 0.89, metricName(other) + " " + summaryText(other) +
+            "   STEADY " + durationText(driftEngine.getSteadySeconds()),
+            Graphics.TEXT_JUSTIFY_CENTER);
+    }
+
+    // Small field: value (or progress) and the metric with a colored state word.
+    private function drawSmall(dc as Graphics.Dc) as Void {
+        var center = dc.getWidth() / 2;
+        var height = dc.getHeight();
+        var align = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(center, height * 0.38, Graphics.FONT_MEDIUM, summaryText(metric), align);
+        dc.setColor(stateColor(metric), Graphics.COLOR_TRANSPARENT);
+        dc.drawText(center, height * 0.78, Graphics.FONT_XTINY,
+            metricName(metric) + " · " + stateTitle(metric), align);
+    }
+
+    // Two pills; the selected metric is filled.
+    private function drawTabs(dc as Graphics.Dc, x as Number, y as Float) as Void {
+        var font = Graphics.FONT_XTINY;
+        var textHeight = dc.getFontHeight(font);
+        var tabHeight = textHeight + 8;
+        var tabWidth = dc.getTextWidthInPixels("LAST 60", font) + textHeight * 2;
+        var gap = 12;
+        var metrics = [METRIC_RIDE, METRIC_LAST_60] as Array<DriftMetric>;
+        for (var i = 0; i < metrics.size(); i += 1) {
+            var tabX = i == 0 ? x - gap / 2 - tabWidth : x + gap / 2;
+            var selected = metrics[i] == metric;
+            dc.setColor(selected ? mForeground : mTrack, Graphics.COLOR_TRANSPARENT);
+            if (selected) {
+                dc.fillRoundedRectangle(tabX, y - tabHeight / 2, tabWidth, tabHeight, tabHeight / 2);
+                dc.setColor(mBackground, Graphics.COLOR_TRANSPARENT);
+            } else {
+                dc.setPenWidth(2);
+                dc.drawRoundedRectangle(tabX, y - tabHeight / 2, tabWidth, tabHeight, tabHeight / 2);
+                dc.setPenWidth(1);
+                dc.setColor(mMuted, Graphics.COLOR_TRANSPARENT);
+            }
+            dc.drawText(tabX + tabWidth / 2, y, font, metricName(metrics[i]),
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        }
+    }
+
+    // The main block: the drift value with a status pill once valid, otherwise the
+    // state title with a progress bar and what is still missing.
+    private function drawHero(dc as Graphics.Dc, x as Number, heroY as Float, statusY as Float,
+                              heroFont as Graphics.FontType, titleFont as Graphics.FontType,
+                              barWidth as Number) as Void {
+        var state = driftEngine.getState(metric);
+        if (state == DRIFT_VALID) {
+            drawDriftValue(dc, x, heroY, heroFont, titleFont);
+            drawPill(dc, x, statusY, stateTitle(metric), stateColor(metric));
+            return;
+        }
+
+        dc.setColor(stateColor(metric), Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, heroY, titleFont, stateTitle(metric),
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+
+        var done = driftEngine.getProgressMinutes(metric);
+        var total = driftEngine.getRequiredMinutes(metric);
+        var caption = (metric == METRIC_RIDE ? "STEADY " : "RIDING ") + minutesText(done, total);
+        if (state == DRIFT_WARMUP) {
+            done = driftEngine.getWarmupElapsedSeconds() / 60;
+            total = driftEngine.getWarmupSeconds() / 60;
+            caption = "WARM-UP " + minutesText(done, total);
+        } else if (state == DRIFT_NOT_STEADY && metric == METRIC_RIDE) {
+            done = driftEngine.getSteadyPercent();
+            total = driftEngine.getRequiredSteadyPercent();
+            caption = "STEADY " + done.format("%d") + "% · NEED " + total.format("%d") + "%";
+        } else if (state == DRIFT_NOT_STEADY) {
+            done = driftEngine.getLastSteadyMinutes();
+            total = driftEngine.getRequiredLastSteadyMinutes();
+            caption = "STEADY " + minutesText(done, total);
+        }
+        var barHeight = 10;
+        var barY = statusY - barHeight;
+        drawProgress(dc, x - barWidth / 2, barY, barWidth, barHeight, done, total);
+        drawLabel(dc, x, barY + barHeight * 3, caption, Graphics.TEXT_JUSTIFY_CENTER);
+    }
+
+    // Number font for the digits and a smaller "%" sharing their baseline.
+    private function drawDriftValue(dc as Graphics.Dc, x as Number, y as Float,
+                                    numberFont as Graphics.FontType,
+                                    unitFont as Graphics.FontType) as Void {
+        var text = driftTextFor(metric);
+        var numberWidth = dc.getTextWidthInPixels(text, numberFont);
+        var unitWidth = dc.getTextWidthInPixels("%", unitFont);
+        var left = x - (numberWidth + unitWidth) / 2;
+        var numberTop = y - dc.getFontHeight(numberFont) / 2;
+        var baseline = numberTop + Graphics.getFontAscent(numberFont);
+        dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(left, numberTop, numberFont, text, Graphics.TEXT_JUSTIFY_LEFT);
+        dc.drawText(left + numberWidth, baseline - Graphics.getFontAscent(unitFont), unitFont,
+            "%", Graphics.TEXT_JUSTIFY_LEFT);
+    }
+
+    // Per-minute Pw:HR line. Steady minutes (the ones drift uses) are drawn in the
+    // metric's color, others muted; the dashed line is the selected metric's
+    // first-half baseline, so drift shows as the line settling below it.
+    private function drawTrend(dc as Graphics.Dc, x as Number, y as Number, width as Number,
+                               height as Number) as Void {
+        var history = driftEngine.getHistory();
+        var size = history.getSize();
+        var baseline = driftEngine.getBaselineEfficiency(metric);
+        var points = 0;
+        var steadyPoints = 0;
+        for (var i = 0; i < size; i += 1) {
+            if (history.getPoint(i) != null) {
+                points += 1;
+                if (history.isSteady(i)) {
+                    steadyPoints += 1;
+                }
+            }
+        }
+        if (points < 2) {
+            dc.setColor(mTrack, Graphics.COLOR_TRANSPARENT);
+            dc.drawRoundedRectangle(x, y, width, height, 8);
+            drawLabel(dc, x + width / 2, y + height / 2, "TREND AFTER 2 MIN OF RIDING",
+                Graphics.TEXT_JUSTIFY_CENTER);
+            return;
+        }
+
+        // Scale to steady minutes when there are some, so warm-up or a climb does
+        // not squash the part that matters; other points are clamped to the chart.
+        var scaleSteadyOnly = steadyPoints >= 2;
+        var low = baseline;
+        var high = baseline;
+        for (var i = 0; i < size; i += 1) {
+            var point = history.getPoint(i);
+            if (point != null && (!scaleSteadyOnly || history.isSteady(i))) {
+                low = (low == null || point < low) ? point : low;
+                high = (high == null || point > high) ? point : high;
+            }
+        }
+        if (low == null || high == null) {
+            return;
+        }
+        // A minimum 0.2 span keeps ordinary minute-to-minute noise from looking dramatic.
+        var mid = (low + high) / 2.0f;
+        var span = (high - low) * 1.3f;
+        if (span < 0.2f) {
+            span = 0.2f;
+        }
+        var bottom = mid - span / 2.0f;
+        var step = width.toFloat() / (size - 1);
+
+        if (baseline != null) {
+            var baseY = chartY(baseline, bottom, span, y, height);
+            dc.setColor(mMuted, Graphics.COLOR_TRANSPARENT);
+            for (var dashX = x; dashX < x + width; dashX += 14) {
+                dc.drawLine(dashX, baseY, dashX + 7, baseY);
+            }
+        }
+
+        var lineColor = driftEngine.getState(metric) == DRIFT_VALID ? stateColor(metric) : mForeground;
+        dc.setPenWidth(4);
+        var hasLast = false;
+        var lastX = 0;
+        var lastY = 0;
+        var lastSteady = false;
+        for (var i = 0; i < size; i += 1) {
+            var point = history.getPoint(i);
+            if (point == null) {
+                // Not enough valid data that minute: break the line.
+                hasLast = false;
+                continue;
+            }
+            var steady = history.isSteady(i);
+            var pointX = x + (step * i).toNumber();
+            var pointY = chartY(point, bottom, span, y, height);
+            if (hasLast) {
+                dc.setColor(steady && lastSteady ? lineColor : mTrack, Graphics.COLOR_TRANSPARENT);
+                dc.drawLine(lastX, lastY, pointX, pointY);
+            }
+            lastX = pointX;
+            lastY = pointY;
+            lastSteady = steady;
+            hasLast = true;
+        }
+        dc.setPenWidth(1);
+        if (hasLast) {
+            dc.setColor(lastSteady ? lineColor : mMuted, Graphics.COLOR_TRANSPARENT);
+            dc.fillCircle(lastX, lastY, 7);
+        }
+    }
+
+    private function chartY(value as Float, bottom as Float, span as Float, y as Number,
+                            height as Number) as Number {
+        var pointY = y + height - ((value - bottom) / span * height).toNumber();
+        if (pointY < y) {
+            return y;
+        }
+        return pointY > y + height ? y + height : pointY;
     }
 
     // Label, zone and value on one line; below it one equal-width segment per zone,
@@ -218,162 +427,6 @@ class DriftGuardView extends WatchUi.DataField {
         dc.fillCircle(markerX, barY + 4, 5);
     }
 
-    // Per-minute Pw:HR line; once a result exists, a dashed line marks the first-half
-    // baseline, so drift shows as the line settling below it.
-    private function drawTrend(dc as Graphics.Dc, x as Number, y as Number, width as Number,
-                               height as Number) as Void {
-        var size = history.getSize();
-        var baseline = driftEngine.getBaselineEfficiency();
-        var low = baseline;
-        var high = baseline;
-        var points = 0;
-        for (var i = 0; i < size; i += 1) {
-            var point = history.getPoint(i);
-            if (point != null) {
-                points += 1;
-                low = (low == null || point < low) ? point : low;
-                high = (high == null || point > high) ? point : high;
-            }
-        }
-        if (points < 2 || low == null || high == null) {
-            dc.setColor(mTrack, Graphics.COLOR_TRANSPARENT);
-            dc.drawRoundedRectangle(x, y, width, height, 8);
-            drawLabel(dc, x + width / 2, y + height / 2, "TREND AFTER 2 MIN OF RIDING",
-                Graphics.TEXT_JUSTIFY_CENTER);
-            return;
-        }
-
-        // A minimum 0.2 span keeps ordinary minute-to-minute noise from looking dramatic.
-        var mid = (low + high) / 2.0f;
-        var span = (high - low) * 1.3f;
-        if (span < 0.2f) {
-            span = 0.2f;
-        }
-        var bottom = mid - span / 2.0f;
-        var step = width.toFloat() / (size - 1);
-
-        if (baseline != null) {
-            var baseY = chartY(baseline, bottom, span, y, height);
-            dc.setColor(mMuted, Graphics.COLOR_TRANSPARENT);
-            for (var dashX = x; dashX < x + width; dashX += 14) {
-                dc.drawLine(dashX, baseY, dashX + 7, baseY);
-            }
-        }
-
-        var color = driftEngine.getState() == DRIFT_VALID ? stateColor() : mForeground;
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-        dc.setPenWidth(4);
-        var hasLast = false;
-        var lastX = 0;
-        var lastY = 0;
-        for (var i = 0; i < size; i += 1) {
-            var point = history.getPoint(i);
-            if (point == null) {
-                // Not enough valid data that minute: break the line.
-                hasLast = false;
-                continue;
-            }
-            var pointX = x + (step * i).toNumber();
-            var pointY = chartY(point, bottom, span, y, height);
-            if (hasLast) {
-                dc.drawLine(lastX, lastY, pointX, pointY);
-            }
-            lastX = pointX;
-            lastY = pointY;
-            hasLast = true;
-        }
-        dc.setPenWidth(1);
-        if (hasLast) {
-            dc.fillCircle(lastX, lastY, 7);
-        }
-    }
-
-    private function chartY(value as Float, bottom as Float, span as Float, y as Number,
-                            height as Number) as Number {
-        return y + height - ((value - bottom) / span * height).toNumber();
-    }
-
-    // Half-page style field: hero drift, status, one summary line.
-    private function drawMedium(dc as Graphics.Dc) as Void {
-        var width = dc.getWidth();
-        var height = dc.getHeight();
-        var center = width / 2;
-        var heroFont = height >= 300 ? Graphics.FONT_NUMBER_HOT : Graphics.FONT_NUMBER_MEDIUM;
-        var titleFont = height >= 300 ? Graphics.FONT_LARGE : Graphics.FONT_MEDIUM;
-
-        drawLabel(dc, center, height * 0.10, "AEROBIC DRIFT", Graphics.TEXT_JUSTIFY_CENTER);
-        drawHero(dc, center, height * 0.40, height * 0.68, heroFont, titleFont, width * 3 / 4);
-        drawLabel(dc, center, height * 0.89,
-            powerText + " W   " + heartRateText + " BPM   " + ratioText,
-            Graphics.TEXT_JUSTIFY_CENTER);
-    }
-
-    // Small field: value (or progress) and a colored state word.
-    private function drawSmall(dc as Graphics.Dc) as Void {
-        var center = dc.getWidth() / 2;
-        var height = dc.getHeight();
-        var align = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
-        var state = driftEngine.getState();
-
-        var value = driftText + "%";
-        if (state == DRIFT_WARMUP) {
-            value = minutesText(driftEngine.getWarmupElapsedMs() / 1000,
-                driftEngine.getWarmupMs() / 1000);
-        } else if (state != DRIFT_VALID) {
-            value = minutesText(driftEngine.getValidSamples(), driftEngine.getRequiredSamples());
-        }
-        dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(center, height * 0.38, Graphics.FONT_MEDIUM, value, align);
-        dc.setColor(stateColor(), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(center, height * 0.78, Graphics.FONT_XTINY, stateTitle(), align);
-    }
-
-    // The main block: the drift value with a status pill once valid, otherwise the
-    // state title with a progress bar towards the next result.
-    private function drawHero(dc as Graphics.Dc, x as Number, heroY as Float, statusY as Float,
-                              heroFont as Graphics.FontType, titleFont as Graphics.FontType,
-                              barWidth as Number) as Void {
-        var state = driftEngine.getState();
-        if (state == DRIFT_VALID) {
-            drawDriftValue(dc, x, heroY, heroFont, titleFont);
-            drawPill(dc, x, statusY, stateTitle(), stateColor());
-            return;
-        }
-
-        dc.setColor(stateColor(), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x, heroY, titleFont, stateTitle(),
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        var done = driftEngine.getValidSamples();
-        var total = driftEngine.getRequiredSamples();
-        var caption = "STEADY DATA  ";
-        if (state == DRIFT_WARMUP) {
-            done = driftEngine.getWarmupElapsedMs() / 1000;
-            total = driftEngine.getWarmupMs() / 1000;
-            caption = "WARM-UP  ";
-        }
-        var barHeight = 10;
-        var barY = statusY - barHeight;
-        drawProgress(dc, x - barWidth / 2, barY, barWidth, barHeight, done, total);
-        drawLabel(dc, x, barY + barHeight * 3, caption + minutesText(done, total),
-            Graphics.TEXT_JUSTIFY_CENTER);
-    }
-
-    // Number font for the digits and a smaller "%" sharing their baseline.
-    private function drawDriftValue(dc as Graphics.Dc, x as Number, y as Float,
-                                    numberFont as Graphics.FontType,
-                                    unitFont as Graphics.FontType) as Void {
-        var numberWidth = dc.getTextWidthInPixels(driftText, numberFont);
-        var unitWidth = dc.getTextWidthInPixels("%", unitFont);
-        var left = x - (numberWidth + unitWidth) / 2;
-        var numberTop = y - dc.getFontHeight(numberFont) / 2;
-        var baseline = numberTop + Graphics.getFontAscent(numberFont);
-        dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(left, numberTop, numberFont, driftText, Graphics.TEXT_JUSTIFY_LEFT);
-        dc.drawText(left + numberWidth, baseline - Graphics.getFontAscent(unitFont), unitFont,
-            "%", Graphics.TEXT_JUSTIFY_LEFT);
-    }
-
     private function drawPill(dc as Graphics.Dc, x as Number, y as Float, text as String,
                               color as Number) as Void {
         var font = Graphics.FONT_SMALL;
@@ -398,7 +451,7 @@ class DriftGuardView extends WatchUi.DataField {
         if (filled < height) {
             filled = height;
         }
-        dc.setColor(stateColor(), Graphics.COLOR_TRANSPARENT);
+        dc.setColor(stateColor(metric), Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(x, y, filled, height, height / 2);
     }
 
@@ -413,13 +466,41 @@ class DriftGuardView extends WatchUi.DataField {
         dc.drawLine(x1, y, x2, y);
     }
 
-    // Completed / total minutes, e.g. "18 / 30 MIN".
-    private function minutesText(doneSeconds as Number, totalSeconds as Number) as String {
-        return (doneSeconds / 60).format("%d") + " / " + (totalSeconds / 60).format("%d") + " MIN";
+    private function otherMetric() as DriftMetric {
+        return metric == METRIC_RIDE ? METRIC_LAST_60 : METRIC_RIDE;
     }
 
-    function stateTitle() as String {
-        var state = driftEngine.getState();
+    function metricName(forMetric as DriftMetric) as String {
+        return forMetric == METRIC_RIDE ? "RIDE" : "LAST 60";
+    }
+
+    // Compact value for a metric: the drift, or what it is waiting for.
+    function summaryText(forMetric as DriftMetric) as String {
+        var state = driftEngine.getState(forMetric);
+        if (state == DRIFT_VALID) {
+            return driftTextFor(forMetric) + "%";
+        } else if (state == DRIFT_NOT_STEADY) {
+            return "NOT STEADY";
+        } else if (state == DRIFT_WARMUP) {
+            return "WARM-UP";
+        }
+        return driftEngine.getProgressMinutes(forMetric).format("%d") + " / " +
+            driftEngine.getRequiredMinutes(forMetric).format("%d") + "'";
+    }
+
+    // Completed / total minutes, e.g. "18 / 40 MIN".
+    private function minutesText(done as Number, total as Number) as String {
+        return done.format("%d") + " / " + total.format("%d") + " MIN";
+    }
+
+    // h:mm
+    function durationText(seconds as Number) as String {
+        var minutes = seconds / 60;
+        return (minutes / 60).format("%d") + ":" + (minutes % 60).format("%02d");
+    }
+
+    function stateTitle(forMetric as DriftMetric) as String {
+        var state = driftEngine.getState(forMetric);
         if (state == DRIFT_WARMUP) {
             return "WARMING UP";
         } else if (state == DRIFT_COLLECTING) {
@@ -427,25 +508,59 @@ class DriftGuardView extends WatchUi.DataField {
         } else if (state == DRIFT_NOT_STEADY) {
             return "NOT STEADY";
         }
-        var band = driftEngine.getBand();
+        var band = driftEngine.getBand(forMetric);
         if (band == BAND_HIGH) {
             return "HIGH DRIFT";
         }
         return band == BAND_WATCH ? "WATCH" : "STABLE";
     }
 
-    private function stateColor() as Number {
-        var state = driftEngine.getState();
+    private function stateColor(forMetric as DriftMetric) as Number {
+        var state = driftEngine.getState(forMetric);
         if (state == DRIFT_NOT_STEADY) {
             return Graphics.COLOR_ORANGE;
         } else if (state != DRIFT_VALID) {
             return mForeground;
         }
-        var band = driftEngine.getBand();
+        var band = driftEngine.getBand(forMetric);
         if (band == BAND_HIGH) {
             return Graphics.COLOR_RED;
         }
         return band == BAND_WATCH ? Graphics.COLOR_ORANGE : mGreen;
+    }
+
+    private function loadMetric() as Void {
+        try {
+            var stored = Application.Storage.getValue(METRIC_STORAGE_KEY);
+            if (stored instanceof Number && (stored as Number) == METRIC_LAST_60) {
+                metric = METRIC_LAST_60;
+            }
+        } catch (e) {
+            // Storage can be unavailable; RIDE is the default.
+        }
+    }
+
+    private function loadZones() as Void {
+        var heartRateThresholds = null;
+        if (UserProfile has :getHeartRateZones2) {
+            heartRateThresholds = UserProfile.getHeartRateZones2(Activity.SPORT_CYCLING);
+        } else {
+            heartRateThresholds = UserProfile.getHeartRateZones(UserProfile.HR_ZONE_SPORT_BIKING);
+        }
+        heartRateZones = Zones.validated(heartRateThresholds as Array<Number>?);
+
+        var powerThresholds = null;
+        if (UserProfile has :getPowerZones) {
+            powerThresholds = Zones.validated(
+                UserProfile.getPowerZones(Activity.SPORT_CYCLING) as Array<Number>?);
+        }
+        if (powerThresholds == null && UserProfile has :getFunctionalThresholdPower) {
+            var ftp = UserProfile.getFunctionalThresholdPower(Activity.SPORT_CYCLING);
+            if (ftp != null && ftp > 0) {
+                powerThresholds = Zones.fromFtp(ftp);
+            }
+        }
+        powerZones = powerThresholds;
     }
 
     private function updatePalette() as Void {

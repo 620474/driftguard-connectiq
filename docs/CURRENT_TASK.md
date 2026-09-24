@@ -1,60 +1,72 @@
-# Milestone 2 — Quality-aware aerobic decoupling
+# Milestone 3 — Long-ride live drift
 
 ## Goal
 
-Add the first local aerobic-decoupling engine to the Edge 1050 Data Field.
+Make DriftGuard useful on a real 2–4 h steady ride: the drift keeps updating for
+the whole ride instead of freezing after the first 30-minute period, and the
+rider can switch between the whole-ride and the last-hour view with a tap.
 
 ## Calculation contract
 
-- Initial warm-up is configurable in code and defaults to 15 minutes of timer
-  time (`Activity.Info.timerTime`, which excludes pauses).
-- Samples with a stopped timer (pause, auto-pause) are ignored entirely: they are
-  neither valid nor invalid.
-- While the timer runs, a sample is valid only when power and HR are positive.
-  Missing or zero power/HR (sensor dropout, coasting) is invalid. Speed is not
-  used, so indoor rides without a speed sensor work.
-- The engine compares the first and second halves of a period of 30 minutes of
-  valid 1 Hz samples. It stores accumulators, not a ride history.
-- Efficiency is average power divided by average HR for each half.
-- Drift is `(firstHalfEfficiency - secondHalfEfficiency) / firstHalfEfficiency * 100`.
-- At least 80% of the samples in a period must be valid (at most 450 invalid
-  samples per 1800 valid). Once exceeded, the period is rejected and a new one
-  starts.
-- Power variability is the coefficient of variation of 30-second power averages
-  across the period and must be at or below 15%. This rejects interval-like power
-  changes without rejecting normal second-to-second pedalling noise. A rejected
-  period restarts collection. The threshold needs validation on real outdoor rides.
-- The first accepted period is the ride's result and is not recalculated.
-- The engine resets on `DataField.onTimerReset()` (activity saved or discarded).
+All data is kept in one-minute records. A minute is 60 seconds of running timer;
+seconds with a stopped timer (pause, auto-pause) are ignored entirely.
 
-## Validity states
+- Warm-up: the first 15 running minutes never count (configurable in code).
+- A second is valid when power and HR are both positive.
+- A minute is **steady** when all of the following hold:
+  - at least 48 of its 60 seconds are valid (≤ 20% coasting / dropout);
+  - its average power (over valid seconds) is within ±20% of the median
+    minute power of the ride so far (post-warm-up minutes with enough data);
+  - it is not one of the 2 minutes after a non-steady minute (HR still
+    recovering from a climb or a stop would inflate drift).
+- Efficiency (EF) is average power / average HR over valid seconds of steady
+  minutes, the same definition Intervals.icu uses for Pw:HR decoupling.
+- Drift is `(EF first half - EF second half) / EF first half * 100`. Halves are
+  split by steady seconds, not by clock time, so excluded minutes do not
+  unbalance them. A minute straddling the split is divided proportionally.
 
-- `WARMUP`: warm-up has not elapsed.
-- `COLLECTING`: collecting the first period (shown as NOT READY).
-- `NOT_STEADY`: the last period failed a quality gate; a new one is collecting.
-- `VALID`: a period passed both gates and a finite drift value is available.
+### RIDE DRIFT
 
-Valid drift is labelled STABLE (< 5%), WATCH (5–10%) or HIGH DRIFT (≥ 10%).
-These are sports-performance labels, not medical claims.
+- All steady minutes after the warm-up.
+- `VALID` from 40 steady minutes, if at least 70% of post-warm-up minutes are
+  steady; otherwise `NOT_STEADY` (from 40 post-warm-up minutes).
+- Recomputed every minute for the whole ride. Minute records are merged
+  pairwise when the fixed buffer fills, so memory is constant for any duration
+  and the sums (and therefore the result) are exact.
+
+### LAST 60 MIN
+
+- The last 60 running minutes, available once 60 post-warm-up minutes exist.
+- `VALID` if at least 48 of those minutes are steady; otherwise `NOT_STEADY`.
+
+### States (per metric)
+
+- `WARMUP` → `COLLECTING` (NOT READY, with progress) → `VALID` / `NOT_STEADY`.
+- Valid drift is labelled STABLE (< 5%), WATCH (5–10%) or HIGH DRIFT (≥ 10%).
+  The 5% guide follows common practice (TrainingPeaks); the 10% boundary is a
+  product heuristic, not a physiological fact.
+
+All thresholds are heuristics to be calibrated on real ride files.
+
+## UX
+
+- Tap anywhere on the field toggles the main metric between RIDE and LAST 60
+  (`InputDelegate.onTap`, Edge touch devices). The choice is remembered.
+- The other metric and STEADY TIME stay visible in smaller type, so no
+  information depends on touch (Edge 540 has no touch screen).
+- The Pw:HR chart draws non-steady minutes muted; the dashed baseline is the
+  first-half EF of the selected metric.
 
 ## Scope
 
-- Edge 1050 only.
-- Local deterministic calculation and basic rendering of state/value.
-- Synthetic deterministic tests with known drift values.
-
-## Explicitly out of scope
-
-- backend, AI, networking, FIT developer fields, monetization;
-- additional Edge models;
-- settings UI or final Store UI;
-- rolling or moving-window drift calculations.
+- Edge 1050 only. No settings UI, no FIT developer fields, no network.
 
 ## Acceptance criteria
 
-- Calculation logic is separate from rendering.
-- Missing values and stopped/coasting samples cannot create NaN or Infinity.
-- Tests cover warm-up, known positive drift, missing sensor data, stopped/coasting
-  data, sparse data, highly variable power, a result that stays valid for the rest
-  of the ride, and reset between activities.
+- Ride drift keeps updating after 45 minutes and follows a later decline.
+- A climb in the middle of a steady ride, plus its HR recovery, does not change
+  the ride drift.
+- Pauses do not count; hilly riding is reported as NOT STEADY.
+- A 6 h ride works with constant memory and gives the same result as unmerged data.
+- Tap toggles the metric; reset between activities clears everything.
 - Edge 1050 build and simulator tests pass.

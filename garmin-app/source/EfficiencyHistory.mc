@@ -1,59 +1,61 @@
 import Toybox.Lang;
 
-// Per-minute Pw:HR for the trend chart: a fixed ring buffer, no ride history growth.
+// The last 60 minute records: the Pw:HR chart and the LAST 60 MIN drift.
 class EfficiencyHistory {
-    private const POINT_SECONDS = 60;
     // A minute with less valid data is a gap in the chart, not an estimate.
-    private const MIN_VALID_SECONDS = 30;
-    private const CAPACITY = 60;
+    private const MIN_CHART_SECONDS = 30;
+    const CAPACITY = 60;
 
-    var mPoints as Array<Float?>;
+    var mPowerSums as Array<Number>;
+    var mHeartRateSums as Array<Number>;
+    var mValidSeconds as Array<Number>;
+    // Valid seconds of steady minutes, 0 for minutes that do not count.
+    var mSteadySeconds as Array<Number>;
     var mCommitted as Number = 0;
-    var mSeconds as Number = 0;
-    var mValidSeconds as Number = 0;
-    var mPowerTotal as Float = 0.0f;
-    var mHeartRateTotal as Float = 0.0f;
 
     function initialize() {
-        mPoints = new Array<Float?>[CAPACITY];
+        mPowerSums = new Array<Number>[CAPACITY];
+        mHeartRateSums = new Array<Number>[CAPACITY];
+        mValidSeconds = new Array<Number>[CAPACITY];
+        mSteadySeconds = new Array<Number>[CAPACITY];
         reset();
     }
 
     function reset() as Void {
         for (var i = 0; i < CAPACITY; i += 1) {
-            mPoints[i] = null;
+            mPowerSums[i] = 0;
+            mHeartRateSums[i] = 0;
+            mValidSeconds[i] = 0;
+            mSteadySeconds[i] = 0;
         }
         mCommitted = 0;
-        resetMinute();
     }
 
-    // Called once per second; only seconds with a running timer make up a minute.
-    function addSample(power as Number?, heartRate as Number?, isTimerRunning as Boolean) as Void {
-        if (!isTimerRunning) {
-            return;
-        }
-        mSeconds += 1;
-        if (power != null && heartRate != null && power > 0 && heartRate > 0) {
-            mValidSeconds += 1;
-            mPowerTotal += power.toFloat();
-            mHeartRateTotal += heartRate.toFloat();
-        }
-        if (mSeconds < POINT_SECONDS) {
-            return;
-        }
-        mPoints[mCommitted % CAPACITY] = mValidSeconds >= MIN_VALID_SECONDS
-            ? mPowerTotal / mHeartRateTotal : null;
+    function addMinute(powerSum as Number, heartRateSum as Number, validSeconds as Number,
+                       isSteady as Boolean) as Void {
+        var i = mCommitted % CAPACITY;
+        mPowerSums[i] = powerSum;
+        mHeartRateSums[i] = heartRateSum;
+        mValidSeconds[i] = validSeconds;
+        mSteadySeconds[i] = isSteady ? validSeconds : 0;
         mCommitted += 1;
-        resetMinute();
     }
 
     function getSize() as Number {
         return mCommitted < CAPACITY ? mCommitted : CAPACITY;
     }
 
-    // Index 0 is the oldest visible minute.
+    // Pw:HR of a visible minute (index 0 is the oldest), or null for a gap.
     function getPoint(index as Number) as Float? {
-        return mPoints[(mCommitted - getSize() + index) % CAPACITY];
+        var i = ringIndex(index);
+        if (mValidSeconds[i] < MIN_CHART_SECONDS) {
+            return null;
+        }
+        return mPowerSums[i].toFloat() / mHeartRateSums[i];
+    }
+
+    function isSteady(index as Number) as Boolean {
+        return mSteadySeconds[ringIndex(index)] > 0;
     }
 
     // The most recent full minute, or null before the first minute or after a gap.
@@ -62,10 +64,24 @@ class EfficiencyHistory {
         return size == 0 ? null : getPoint(size - 1);
     }
 
-    private function resetMinute() as Void {
-        mSeconds = 0;
-        mValidSeconds = 0;
-        mPowerTotal = 0.0f;
-        mHeartRateTotal = 0.0f;
+    function getSteadyMinutes() as Number {
+        var steady = 0;
+        for (var i = 0; i < getSize(); i += 1) {
+            if (mSteadySeconds[i] > 0) {
+                steady += 1;
+            }
+        }
+        return steady;
+    }
+
+    // [driftPercent, firstHalfEfficiency] over the steady minutes shown, or null.
+    function drift() as Array<Float>? {
+        var size = getSize();
+        return DriftMath.halves(mPowerSums, mHeartRateSums, mSteadySeconds,
+            (mCommitted - size) % CAPACITY, size, CAPACITY);
+    }
+
+    private function ringIndex(index as Number) as Number {
+        return (mCommitted - getSize() + index) % CAPACITY;
     }
 }
