@@ -8,9 +8,13 @@ class DriftGuardView extends WatchUi.DataField {
     var powerText as String = "--";
     var heartRateText as String = "--";
     var ratioText as String = "--";
+    var driftText as String = "--";
+    var driftState as String = "NOT_READY";
+    var driftEngine as DriftEngine;
 
     function initialize() {
         DataField.initialize();
+        driftEngine = new DriftEngine(null);
     }
 
     function compute(info as Activity.Info) as Void {
@@ -31,6 +35,12 @@ class DriftGuardView extends WatchUi.DataField {
                 ratioText = (power.toFloat() / heartRate).format("%.2f");
             }
         }
+
+        var isTimerRunning = info.timerState == Activity.TIMER_STATE_ON;
+        driftEngine.addSample(info.elapsedTime, power, heartRate, info.currentSpeed, isTimerRunning);
+        driftState = driftEngine.getValidityState();
+        var drift = driftEngine.getDriftPercent();
+        driftText = drift == null ? "--" : drift.format("%.1f") + "%";
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
@@ -44,17 +54,20 @@ class DriftGuardView extends WatchUi.DataField {
         var align = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
 
         if (height >= 300) {
-            dc.drawText(center, height * 0.08, Graphics.FONT_SMALL, "DRIFTGUARD", align);
-            dc.drawText(center, height * 0.23, Graphics.FONT_XTINY, "POWER", align);
-            dc.drawText(center, height * 0.34, Graphics.FONT_LARGE, powerText, align);
-            dc.drawText(center, height * 0.49, Graphics.FONT_XTINY, "HR", align);
-            dc.drawText(center, height * 0.60, Graphics.FONT_LARGE, heartRateText, align);
-            dc.drawText(center, height * 0.75, Graphics.FONT_XTINY, "PW:HR", align);
-            dc.drawText(center, height * 0.86, Graphics.FONT_LARGE, ratioText, align);
+            dc.drawText(center, height * 0.06, Graphics.FONT_SMALL, "DRIFTGUARD", align);
+            dc.drawText(center, height * 0.16, Graphics.FONT_XTINY, driftState, align);
+            dc.drawText(center, height * 0.25, Graphics.FONT_LARGE, driftText, align);
+            dc.drawText(center, height * 0.38, Graphics.FONT_XTINY, "POWER", align);
+            dc.drawText(center, height * 0.47, Graphics.FONT_MEDIUM, powerText, align);
+            dc.drawText(center, height * 0.59, Graphics.FONT_XTINY, "HR", align);
+            dc.drawText(center, height * 0.68, Graphics.FONT_MEDIUM, heartRateText, align);
+            dc.drawText(center, height * 0.80, Graphics.FONT_XTINY, "PW:HR", align);
+            dc.drawText(center, height * 0.90, Graphics.FONT_MEDIUM, ratioText, align);
         } else {
-            dc.drawText(center, height / 6, Graphics.FONT_XTINY, "P " + powerText, align);
-            dc.drawText(center, height / 2, Graphics.FONT_XTINY, "HR " + heartRateText, align);
-            dc.drawText(center, height * 5 / 6, Graphics.FONT_XTINY, "PW:HR " + ratioText, align);
+            dc.drawText(center, height / 8, Graphics.FONT_XTINY, driftState, align);
+            dc.drawText(center, height * 3 / 8, Graphics.FONT_XTINY, "DRIFT " + driftText, align);
+            dc.drawText(center, height * 5 / 8, Graphics.FONT_XTINY, "P " + powerText, align);
+            dc.drawText(center, height * 7 / 8, Graphics.FONT_XTINY, "HR " + heartRateText, align);
         }
     }
 }

@@ -1,8 +1,9 @@
-# DriftGuard — Milestone 1
+# DriftGuard — Milestone 2
 
 Edge 1050 Connect IQ Data Field based on the installed Garmin SDK templates.
-Displays current power, HR, and instantaneous power / HR. No aerobic decoupling,
-settings, stored history, permissions, or network access.
+Displays current power, HR, instantaneous power / HR, and a local quality-aware
+aerobic-decoupling result. No settings UI, stored ride history, permissions, or
+network access.
 
 ## Windows build
 
@@ -71,3 +72,24 @@ by Windows capture error `SetIsBorderRequired: 0x80004002` and unavailable input
 geometry. Live activity playback and layout appearance still need manual review.
 Physical-device checks remain for sensor-disconnection timing (the app can clear
 only values Garmin reports as missing), activity lifecycle, and readability.
+
+## Aerobic decoupling
+
+`DriftEngine` owns the Milestone 2 calculation; `DriftGuardView` only passes it
+activity data and renders its state. The default warm-up is 15 minutes and can
+be changed only in code by passing milliseconds to `new DriftEngine(warmupMs)`.
+There is deliberately no settings UI yet.
+
+After the warm-up, an accepted one-second sample requires a running activity
+timer, positive power and HR, and either positive speed or unavailable speed
+(so indoor activities remain possible). Missing/zero readings, stopped timers,
+and known stopped/coasting speed are excluded. The first 30 minutes of accepted
+samples are split into two 15-minute halves. Each half's efficiency is average
+power divided by average HR, and drift is the percentage decrease from the
+first half to the second.
+
+The field shows `NOT_READY` until 30 minutes of valid samples exist. It shows
+`NOT_STEADY` rather than a percentage if fewer than 80% of post-warm-up samples
+observed while building that period were valid, or if power's coefficient of
+variation exceeds 15%. Otherwise it shows `VALID` and the finite calculated
+percentage. This is a fixed first-result period, not a rolling calculation.
