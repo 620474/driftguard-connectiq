@@ -47,6 +47,18 @@ Initial release may be free.
 
 Only after real usage should we add paid unlock / external payment experiments.
 
+## 2026-09-25 — Refuse drift when the halves differ in power
+
+Pw:HR compares effort as well as physiology: with HR ≈ HR0 + k·P, a 10% power
+change alone shifts it by about 5%. DriftGuard therefore shows POWER CHANGED
+instead of a percentage when the halves differ by more than 5% in average power.
+This deliberately departs from Intervals.icu, which does not check this; an
+Intervals-style value is still recorded to FIT (`dg_compat_drift`) for comparison.
+
+HR recovery after a non-steady minute is 3 minutes, labels use 0.5 pp hysteresis,
+and drift below −3% gets a neutral label. The regression and %/hour estimators
+suggested by research wait for real FIT data.
+
 ## 2026-09-25 — Live drift for the whole ride and the last hour
 
 The fixed 15–45 minute result is replaced by two live metrics: RIDE drift over

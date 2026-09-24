@@ -1,3 +1,42 @@
+# Milestone 4 — Honest numbers and calibration recording
+
+Follows the two research reports (Claude, ChatGPT) on the Milestone 3 model.
+
+## Changes
+
+- **Power-match gate.** Halves whose average power differs by more than 5% are
+  not compared: the metric shows `POWER_CHANGED` with the change instead of a
+  percentage. With HR ≈ HR0 + k·P, Pw:HR changes by about (HR0/HR)·ΔP/P, so a 10%
+  lower second half alone looks like ~5% drift. Even inside the 5% gate a power
+  change can still add up to ~2.5% of apparent drift; the gate may be tightened to
+  3% after calibration.
+- **Fallback instead of a refusal screen.** If the selected metric has given up
+  on the ride (POWER CHANGED or NOT STEADY) and the other has a value, the other
+  is shown large; its tab is filled and the selected tab gets an orange outline.
+  The refused metric shrinks to its one-line summary (e.g. `RIDE  PWR -10%`).
+  While a metric is still collecting, its progress is shown as before.
+- **HR recovery after a non-steady minute: 3 minutes** (was 2), about three HR
+  time constants of 35–70 s.
+- **Label hysteresis:** STABLE / WATCH / HIGH DRIFT change only once the drift is
+  0.5 percentage points past a boundary.
+- **Negative drift below −3%** gets a neutral `NEGATIVE` label (muted color)
+  instead of STABLE: usually an unfinished warm-up or a change of effort.
+- **FIT recording (FitContributor)** for calibration against Intervals.icu:
+  - record, updated each minute: `dg_ef` (minute Pw:HR, 0 = no data),
+    `dg_steady` (0/1), `dg_ride_drift` (%), `dg_ride_state`, `dg_cadence`
+    (pedalling-only minute average, rpm);
+  - session: `dg_ride_drift_final`, `dg_ride_state_final`, `dg_steady_percent`,
+    `dg_power_change`, `dg_compat_drift`;
+  - state codes: 0 warm-up, 1 collecting, 2 not steady, 3 power changed, 4 valid;
+  - `dg_compat_drift` is computed like Intervals.icu (whole activity from the
+    start, average power including zeros / average HR, halves by time) to check
+    the arithmetic against the Intervals.icu activity value.
+
+Deferred to a later milestone (need real FIT data first): HR = α + β·P + γ·t
+regression, %/hour, heat flag, settings for Edge 540, uncertainty display.
+
+---
+
 # Milestone 3 — Long-ride live drift
 
 ## Goal

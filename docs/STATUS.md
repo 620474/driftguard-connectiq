@@ -4,12 +4,12 @@ Last updated: 2026-09-25
 
 ## Current phase
 
-Milestone 3 implemented; Edge 1050 build and 16 simulator tests pass.
+Milestone 4 implemented; Edge 1050 build and 21 simulator tests pass.
 Physical-device testing and calibration on real ride files are pending.
 
 ## Current milestone
 
-**Milestone 3 — Long-ride live drift**
+**Milestone 4 — Honest numbers and calibration recording**
 
 See: `docs/CURRENT_TASK.md`.
 
@@ -48,6 +48,11 @@ See: `docs/CURRENT_TASK.md`.
   buckets) and LAST 60 MIN drift, STEADY TIME, tap to switch the main metric,
   chart marks non-steady minutes. 16 simulator tests; tap and both metrics
   checked by screenshot with a synthetic 2.5 h ride.
+- Milestone 4 (after research review): POWER CHANGED gate for halves differing
+  by more than 5% in power, 3-minute HR recovery, label hysteresis, neutral
+  NEGATIVE label, FIT recording of minute EF / steady / drift / cadence and an
+  Intervals-style compat drift; a refused metric gives way to the other one
+  on screen. 21 simulator tests.
 
 ## Next
 

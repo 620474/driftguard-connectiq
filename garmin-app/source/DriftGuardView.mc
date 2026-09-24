@@ -19,8 +19,11 @@ class DriftGuardView extends WatchUi.DataField {
     var heartRateText as String = "--";
     var ratioText as String = "--";
     var driftEngine as DriftEngine;
-    // The metric shown large; tapping the field switches it.
+    var recorder as DriftRecorder;
+    // The metric the rider selected; tapping the field switches it.
     var metric as DriftMetric = METRIC_RIDE;
+    // The metric actually drawn large this update (see displayMetric).
+    private var mShown as DriftMetric = METRIC_RIDE;
 
     // 3 s average power, as on Garmin's own power field; 1 s power is too jumpy for zones.
     var power3s as Number? = null;
@@ -40,9 +43,12 @@ class DriftGuardView extends WatchUi.DataField {
     private var mTrack as Number = Graphics.COLOR_LT_GRAY;
     private var mGreen as Number = Graphics.COLOR_DK_GREEN;
 
-    function initialize() {
+    // recordFit is false only in unit tests, where the view is not part of an
+    // activity and FIT fields cannot be created.
+    function initialize(recordFit as Boolean) {
         DataField.initialize();
         driftEngine = new DriftEngine(null);
+        recorder = new DriftRecorder(recordFit ? self : null);
         loadZones();
         loadMetric();
     }
@@ -80,6 +86,7 @@ class DriftGuardView extends WatchUi.DataField {
 
         var isTimerRunning = info.timerState == Activity.TIMER_STATE_ON;
         driftEngine.addSample(power, currentHeartRate, isTimerRunning);
+        recorder.onSecond(driftEngine, info.currentCadence, isTimerRunning);
         // Instant power / HR is noise (HR lags power); show the last full minute instead.
         var ratio = driftEngine.getHistory().getLatest();
         ratioText = ratio == null ? "--" : ratio.format("%.2f");
@@ -88,6 +95,7 @@ class DriftGuardView extends WatchUi.DataField {
     // Called when the activity is saved or discarded: the next ride starts clean.
     function onTimerReset() as Void {
         driftEngine.reset();
+        recorder.reset();
         mPowerWindowCount = 0;
         ratioText = "--";
         // Zones may have been edited in Garmin Connect since the field started.
@@ -108,7 +116,21 @@ class DriftGuardView extends WatchUi.DataField {
         return drift == null ? "--" : drift.format("%.1f");
     }
 
+    // The selected metric, unless it has given up on this ride (POWER CHANGED or
+    // NOT STEADY) while the other one has a value: then the other is shown large
+    // and the selected one is reduced to its one-line summary.
+    function displayMetric() as DriftMetric {
+        var state = driftEngine.getState(metric);
+        var other = metric == METRIC_RIDE ? METRIC_LAST_60 : METRIC_RIDE;
+        if ((state == DRIFT_POWER_CHANGED || state == DRIFT_NOT_STEADY) &&
+            driftEngine.getState(other) == DRIFT_VALID) {
+            return other;
+        }
+        return metric;
+    }
+
     function onUpdate(dc as Graphics.Dc) as Void {
+        mShown = displayMetric();
         updatePalette();
         dc.setColor(mForeground, mBackground);
         dc.clear();
@@ -170,7 +192,7 @@ class DriftGuardView extends WatchUi.DataField {
         var heroFont = height >= 300 ? Graphics.FONT_NUMBER_HOT : Graphics.FONT_NUMBER_MEDIUM;
         var titleFont = height >= 300 ? Graphics.FONT_LARGE : Graphics.FONT_MEDIUM;
 
-        drawLabel(dc, center, height * 0.10, metricName(metric) + " DRIFT",
+        drawLabel(dc, center, height * 0.10, metricName(mShown) + " DRIFT",
             Graphics.TEXT_JUSTIFY_CENTER);
         drawHero(dc, center, height * 0.40, height * 0.68, heroFont, titleFont, width * 3 / 4);
         var other = otherMetric();
@@ -185,13 +207,14 @@ class DriftGuardView extends WatchUi.DataField {
         var height = dc.getHeight();
         var align = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(center, height * 0.38, Graphics.FONT_MEDIUM, summaryText(metric), align);
-        dc.setColor(stateColor(metric), Graphics.COLOR_TRANSPARENT);
+        dc.drawText(center, height * 0.38, Graphics.FONT_MEDIUM, summaryText(mShown), align);
+        dc.setColor(stateColor(mShown), Graphics.COLOR_TRANSPARENT);
         dc.drawText(center, height * 0.78, Graphics.FONT_XTINY,
-            metricName(metric) + " · " + stateTitle(metric), align);
+            metricName(mShown) + " · " + stateTitle(mShown), align);
     }
 
-    // Two pills; the selected metric is filled.
+    // Two pills; the metric shown large is filled. A selected metric that had to
+    // give way (see displayMetric) keeps an orange outline.
     private function drawTabs(dc as Graphics.Dc, x as Number, y as Float) as Void {
         var font = Graphics.FONT_XTINY;
         var textHeight = dc.getFontHeight(font);
@@ -201,8 +224,10 @@ class DriftGuardView extends WatchUi.DataField {
         var metrics = [METRIC_RIDE, METRIC_LAST_60] as Array<DriftMetric>;
         for (var i = 0; i < metrics.size(); i += 1) {
             var tabX = i == 0 ? x - gap / 2 - tabWidth : x + gap / 2;
-            var selected = metrics[i] == metric;
-            dc.setColor(selected ? mForeground : mTrack, Graphics.COLOR_TRANSPARENT);
+            var selected = metrics[i] == mShown;
+            var gaveWay = metrics[i] == metric && metric != mShown;
+            dc.setColor(selected ? mForeground : (gaveWay ? Graphics.COLOR_ORANGE : mTrack),
+                Graphics.COLOR_TRANSPARENT);
             if (selected) {
                 dc.fillRoundedRectangle(tabX, y - tabHeight / 2, tabWidth, tabHeight, tabHeight / 2);
                 dc.setColor(mBackground, Graphics.COLOR_TRANSPARENT);
@@ -222,25 +247,25 @@ class DriftGuardView extends WatchUi.DataField {
     private function drawHero(dc as Graphics.Dc, x as Number, heroY as Float, statusY as Float,
                               heroFont as Graphics.FontType, titleFont as Graphics.FontType,
                               barWidth as Number) as Void {
-        var state = driftEngine.getState(metric);
+        var state = driftEngine.getState(mShown);
         if (state == DRIFT_VALID) {
             drawDriftValue(dc, x, heroY, heroFont, titleFont);
-            drawPill(dc, x, statusY, stateTitle(metric), stateColor(metric));
+            drawPill(dc, x, statusY, stateTitle(mShown), stateColor(mShown));
             return;
         }
 
-        dc.setColor(stateColor(metric), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x, heroY, titleFont, stateTitle(metric),
+        dc.setColor(stateColor(mShown), Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, heroY, titleFont, stateTitle(mShown),
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        var done = driftEngine.getProgressMinutes(metric);
-        var total = driftEngine.getRequiredMinutes(metric);
-        var caption = (metric == METRIC_RIDE ? "STEADY " : "RIDING ") + minutesText(done, total);
+        var done = driftEngine.getProgressMinutes(mShown);
+        var total = driftEngine.getRequiredMinutes(mShown);
+        var caption = (mShown == METRIC_RIDE ? "STEADY " : "RIDING ") + minutesText(done, total);
         if (state == DRIFT_WARMUP) {
             done = driftEngine.getWarmupElapsedSeconds() / 60;
             total = driftEngine.getWarmupSeconds() / 60;
             caption = "WARM-UP " + minutesText(done, total);
-        } else if (state == DRIFT_NOT_STEADY && metric == METRIC_RIDE) {
+        } else if (state == DRIFT_NOT_STEADY && mShown == METRIC_RIDE) {
             done = driftEngine.getSteadyPercent();
             total = driftEngine.getRequiredSteadyPercent();
             caption = "STEADY " + done.format("%d") + "% · NEED " + total.format("%d") + "%";
@@ -248,10 +273,19 @@ class DriftGuardView extends WatchUi.DataField {
             done = driftEngine.getLastSteadyMinutes();
             total = driftEngine.getRequiredLastSteadyMinutes();
             caption = "STEADY " + minutesText(done, total);
+        } else if (state == DRIFT_POWER_CHANGED) {
+            // No progress bar: the halves must be ridden at similar power.
+            done = 0;
+            total = 0;
+            var change = driftEngine.getPowerChangePercent(mShown) as Float;
+            caption = "2ND HALF " + (change > 0 ? "+" : "") + change.format("%.0f") +
+                "% · MAX ±" + driftEngine.getMaxPowerChangePercent().format("%.0f") + "%";
         }
         var barHeight = 10;
         var barY = statusY - barHeight;
-        drawProgress(dc, x - barWidth / 2, barY, barWidth, barHeight, done, total);
+        if (total > 0) {
+            drawProgress(dc, x - barWidth / 2, barY, barWidth, barHeight, done, total);
+        }
         drawLabel(dc, x, barY + barHeight * 3, caption, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
@@ -259,7 +293,7 @@ class DriftGuardView extends WatchUi.DataField {
     private function drawDriftValue(dc as Graphics.Dc, x as Number, y as Float,
                                     numberFont as Graphics.FontType,
                                     unitFont as Graphics.FontType) as Void {
-        var text = driftTextFor(metric);
+        var text = driftTextFor(mShown);
         var numberWidth = dc.getTextWidthInPixels(text, numberFont);
         var unitWidth = dc.getTextWidthInPixels("%", unitFont);
         var left = x - (numberWidth + unitWidth) / 2;
@@ -278,7 +312,7 @@ class DriftGuardView extends WatchUi.DataField {
                                height as Number) as Void {
         var history = driftEngine.getHistory();
         var size = history.getSize();
-        var baseline = driftEngine.getBaselineEfficiency(metric);
+        var baseline = driftEngine.getBaselineEfficiency(mShown);
         var points = 0;
         var steadyPoints = 0;
         for (var i = 0; i < size; i += 1) {
@@ -329,7 +363,7 @@ class DriftGuardView extends WatchUi.DataField {
             }
         }
 
-        var lineColor = driftEngine.getState(metric) == DRIFT_VALID ? stateColor(metric) : mForeground;
+        var lineColor = driftEngine.getState(mShown) == DRIFT_VALID ? stateColor(mShown) : mForeground;
         dc.setPenWidth(4);
         var hasLast = false;
         var lastX = 0;
@@ -451,7 +485,7 @@ class DriftGuardView extends WatchUi.DataField {
         if (filled < height) {
             filled = height;
         }
-        dc.setColor(stateColor(metric), Graphics.COLOR_TRANSPARENT);
+        dc.setColor(stateColor(mShown), Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(x, y, filled, height, height / 2);
     }
 
@@ -467,7 +501,7 @@ class DriftGuardView extends WatchUi.DataField {
     }
 
     private function otherMetric() as DriftMetric {
-        return metric == METRIC_RIDE ? METRIC_LAST_60 : METRIC_RIDE;
+        return mShown == METRIC_RIDE ? METRIC_LAST_60 : METRIC_RIDE;
     }
 
     function metricName(forMetric as DriftMetric) as String {
@@ -481,6 +515,9 @@ class DriftGuardView extends WatchUi.DataField {
             return driftTextFor(forMetric) + "%";
         } else if (state == DRIFT_NOT_STEADY) {
             return "NOT STEADY";
+        } else if (state == DRIFT_POWER_CHANGED) {
+            var change = driftEngine.getPowerChangePercent(forMetric) as Float;
+            return "PWR " + (change > 0 ? "+" : "") + change.format("%.0f") + "%";
         } else if (state == DRIFT_WARMUP) {
             return "WARM-UP";
         }
@@ -507,17 +544,21 @@ class DriftGuardView extends WatchUi.DataField {
             return "NOT READY";
         } else if (state == DRIFT_NOT_STEADY) {
             return "NOT STEADY";
+        } else if (state == DRIFT_POWER_CHANGED) {
+            return "POWER CHANGED";
         }
         var band = driftEngine.getBand(forMetric);
         if (band == BAND_HIGH) {
             return "HIGH DRIFT";
+        } else if (band == BAND_WATCH) {
+            return "WATCH";
         }
-        return band == BAND_WATCH ? "WATCH" : "STABLE";
+        return band == BAND_NEGATIVE ? "NEGATIVE" : "STABLE";
     }
 
     private function stateColor(forMetric as DriftMetric) as Number {
         var state = driftEngine.getState(forMetric);
-        if (state == DRIFT_NOT_STEADY) {
+        if (state == DRIFT_NOT_STEADY || state == DRIFT_POWER_CHANGED) {
             return Graphics.COLOR_ORANGE;
         } else if (state != DRIFT_VALID) {
             return mForeground;
@@ -525,8 +566,11 @@ class DriftGuardView extends WatchUi.DataField {
         var band = driftEngine.getBand(forMetric);
         if (band == BAND_HIGH) {
             return Graphics.COLOR_RED;
+        } else if (band == BAND_WATCH) {
+            return Graphics.COLOR_ORANGE;
         }
-        return band == BAND_WATCH ? Graphics.COLOR_ORANGE : mGreen;
+        // Negative drift is neither good nor bad news on its own: neutral color.
+        return band == BAND_NEGATIVE ? mMuted : mGreen;
     }
 
     private function loadMetric() as Void {
