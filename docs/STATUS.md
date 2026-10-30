@@ -1,3 +1,13 @@
+# INTERVALS HR and raw HRR60 — 2026-10-31
+
+Current HR and gated signed HRR60 added by owner request. AUTO end is backdated
+five samples, explicit segments require complete power data. Three-second HR
+windows, complete low-power recovery, no pause/new effort. No normative bands.
+DriftEngine, detector thresholds and FIT contracts unchanged. Physical test pending.
+See HEART_RECOVERY_RU.md.
+
+---
+
 # Live AUTO на Edge 1050 — 2026-10-31
 
 По новому запросу владельца автоматический режим включён в приложение по умолчанию.

@@ -1,3 +1,13 @@
+# INTERVALS HR / raw HRR60 — 2026-10-31
+
+Owner explicitly confirmed adding current HR and raw gated HRR60 for a joint test.
+Implement separate bounded state, independent of screen. Preserve DriftEngine and
+FIT schemas. Handle AUTO backdating, explicit segments, dropout/pause/new effort.
+No normative scores, rep trend or diagnosis. Build/tests, push main and verify release.
+See HEART_RECOVERY_RU.md for the measurement contract and engineering gates.
+
+---
+
 # Release distribution — 2026-10-31
 
 Owner requested ready-to-install PRG downloads in GitHub releases. Build signed

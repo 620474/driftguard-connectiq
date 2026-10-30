@@ -1,3 +1,13 @@
+# Current HR and HRR60
+
+INTERVALS now shows current heart rate and raw HRR60 after a suitable completed
+segment and 60 seconds of low-power recovery. Plus means HR fell; minus means it
+rose. No good/bad classification. Missing data, pause or renewed power can refuse
+HRR. This display metric is not added to FIT; DRIFT calculations are unchanged.
+See [measurement contract](../docs/HEART_RECOVERY_RU.md).
+
+---
+
 # Live AUTO на Edge 1050 — 2026-10-31
 
 По новому запросу владельца автоматический режим включён в приложение по умолчанию.

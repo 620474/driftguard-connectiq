@@ -9,6 +9,7 @@ class DriftGuardView extends WatchUi.DataField {
     private const POWER_AVERAGE_SECONDS = 3;
     private const SCREEN_STORAGE_KEY = "screen";
     var intervals as IntervalSession;
+    var recovery as HeartRecovery;
     var intervalScreen as Boolean = false;
     // Garmin's usual zone colors: gray, blue, green, orange, red, then yellow/purple
     // for 7-zone power models (inserted so the order stays cool to hot).
@@ -53,6 +54,7 @@ class DriftGuardView extends WatchUi.DataField {
         recorder = new DriftRecorder(recordFit ? self : null);
         loadZones();
         intervals = new IntervalSession();
+        recovery = new HeartRecovery();
         loadScreen();
     }
 
@@ -89,7 +91,16 @@ class DriftGuardView extends WatchUi.DataField {
 
         var isTimerRunning = info.timerState == Activity.TIMER_STATE_ON;
         driftEngine.addSample(power, currentHeartRate, isTimerRunning);
+        recovery.sample(currentHeartRate,power,isTimerRunning);
+        var priorEnd=intervals.automatic.detectedEnd;
+        var wasActive=intervals.automatic.active;
         intervals.addSample(power, isTimerRunning);
+        if (intervals.source.equals("AUTO")) {
+            if (!wasActive && intervals.automatic.active) { recovery.cancel("NEW EFFORT"); }
+            if (priorEnd!=intervals.automatic.detectedEnd && !intervals.lastInterrupted) {
+                recovery.begin(5,intervals.lastMean,intervals.lastSeconds);
+            }
+        }
         recorder.onSecond(driftEngine, info.currentCadence, isTimerRunning);
         // Instant power / HR is noise (HR lags power); show the last full minute instead.
         var ratio = driftEngine.getHistory().getLatest();
@@ -100,6 +111,7 @@ class DriftGuardView extends WatchUi.DataField {
     function onTimerReset() as Void {
         driftEngine.reset();
         intervals.reset();
+        recovery.reset();
         recorder.reset();
         mPowerWindowCount = 0;
         ratioText = "--";
@@ -114,11 +126,22 @@ class DriftGuardView extends WatchUi.DataField {
         } catch (e) {}
     }
 
-    function onWorkoutStarted() as Void { intervals.startWorkout(); }
-    function onWorkoutStepComplete() as Void { intervals.boundary(true); }
+    function onWorkoutStarted() as Void { intervals.startWorkout(); recovery.reset(); }
+    function onWorkoutStepComplete() as Void { intervalBoundary(true); }
+    private function intervalBoundary(workout as Boolean) as Void {
+        var explicitSource=intervals.source.equals("WORKOUT") || intervals.source.equals("MANUAL");
+        var oldSequence=intervals.sequence;
+        var oldSeconds=intervals.seconds;
+        var oldValid=intervals.validPower;
+        intervals.boundary(workout);
+        if (explicitSource && oldSeconds>0 && intervals.sequence!=oldSequence) {
+            if (oldValid==oldSeconds) { recovery.begin(0,intervals.lastMean,intervals.lastSeconds); }
+            else { recovery.cancel("POWER MISSING"); }
+        } else if (!explicitSource) { recovery.cancel("NEW SEGMENT"); }
+    }
     function onTimerLap2(trigger as WatchUi.DataField.LapInfoType) as Boolean {
         if (trigger[:lapTrigger] == WatchUi.DataField.LAP_TRIGGER_MANUAL) {
-            intervals.boundary(false);
+            intervalBoundary(false);
         }
         // Consume all lap notifications so the legacy callback cannot duplicate one.
         return true;
@@ -239,11 +262,12 @@ class DriftGuardView extends WatchUi.DataField {
             else if (!intervals.paused && autoMode && intervals.automatic.historyCount<60) {
                 status="BASELINE " + intervals.automatic.historyCount.format("%d") + "/60 s";
             }
-            drawLabel(dc,x,h*0.38,status,Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc,x,h*0.34,status,Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc,x,h*0.50,"HR " + heartRateText + " bpm",Graphics.TEXT_JUSTIFY_CENTER);
             var last=intervals.lastMean;
             var caption=last==null ? "RIDE TO DETECT" : "LAST " + last.format("%.0f") + " W / " + intervals.lastSeconds.format("%d") + " s";
             drawLabel(dc,x,h*0.66,caption,Graphics.TEXT_JUSTIFY_CENTER);
-            drawLabel(dc,x,h*0.86,intervals.lastInterrupted ? "LAST INCOMPLETE" : "AUTO",Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc,x,h*0.88,(compact ? recovery.compactText() : recovery.text()),Graphics.TEXT_JUSTIFY_CENTER);
             return;
         }
         var mean=intervals.meanPower();
@@ -254,10 +278,11 @@ class DriftGuardView extends WatchUi.DataField {
         var elapsed=(intervals.seconds/60).format("%d") + ":" + (intervals.seconds%60).format("%02d");
         var detail=(intervals.paused ? "PAUSED " : "") + elapsed;
         if (!autoMode && !compact) { detail+=" / " + intervals.validPower.format("%d") + " PWR samples"; }
-        drawLabel(dc,x,h*0.65,detail,Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc,x,h*0.63,detail,Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc,x,h*0.76,"HR " + heartRateText + " bpm",Graphics.TEXT_JUSTIFY_CENTER);
         var footer=autoMode ? "AUTO / #" + intervals.sequence.format("%d") : intervals.source;
         if (intervals.interrupted) { footer+=" / INTERRUPTED"; }
-        drawLabel(dc,x,h*0.86,footer,Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc,x,h*0.90,(compact ? recovery.compactText() : recovery.text()),Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // Screen title identifies which of the two drift results is drawn large.

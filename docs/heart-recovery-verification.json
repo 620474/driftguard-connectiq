@@ -1,0 +1,26 @@
+{
+  "python_suite": 73,
+  "production_simulator": 35,
+  "calibration_simulator": 38,
+  "builds": "production/calibration normal/test, SDK 9.2.0 strict level 3, Edge 1050",
+  "cases": [
+    "AUTO end backdated five seconds",
+    "59/60 boundary",
+    "three-second windows",
+    "positive/negative delta",
+    "missing HR/power",
+    "zero power distinct from missing",
+    "excess recovery power",
+    "pause/reset/new effort",
+    "compute integration"
+  ],
+  "engineering_gates": {
+    "minimum_effort_seconds": 10,
+    "max_recovery_power_fraction": 0.5,
+    "hr_window_seconds": 3,
+    "measurement_seconds": 60
+  },
+  "fit_schema_changed": false,
+  "drift_engine_changed": false,
+  "physical_edge_test": false
+}
