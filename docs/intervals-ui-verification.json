@@ -1,11 +1,13 @@
 {
-  "production_simulator": 37,
-  "calibration_simulator": 40,
+  "production_simulator": 38,
+  "calibration_simulator": 41,
   "builds": "production/calibration normal/test, strict level 3, SDK 9.3.0 edge1050",
   "render_test": "480x800 Graphics.BufferedBitmap: waiting/active/dropout; PASS",
   "history_test": "180 slots, FIFO rollover, zero watts, independent HR gaps, pause and reset; PASS",
   "analysis_changed": false,
   "fit_schema_changed": false,
   "visual_capture": "unavailable: Windows graphics capture timed out after reset/retry",
-  "physical_edge_test": false
+  "physical_edge_test": false,
+  "legibility": "Full field: larger summary/axis/placeholder fonts, split last power/time, 72/76 px plots; small render frames avoid stack overflow",
+  "duration_regression": "30s=0:30; 90s=1:30; 5400s=1:30:00; DRIFT H:MM unchanged"
 }

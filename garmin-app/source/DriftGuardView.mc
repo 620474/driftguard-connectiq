@@ -309,47 +309,82 @@ class DriftGuardView extends WatchUi.DataField {
     }
 
     private function drawIntervalsFull(dc as Graphics.Dc) as Void {
+        // Small render frames preserve stack space for nested zone calculations.
+        drawIntervalHeader(dc);
+        drawIntervalSummary(dc);
+        drawIntervalCharts(dc);
+        drawIntervalGauges(dc);
+    }
+    private function drawIntervalHeader(dc as Graphics.Dc) as Void {
         var w=dc.getWidth(); var h=dc.getHeight(); var x=w/2; var margin=w/12;
+        var large=h>=700;
+        var align=Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         var autoMode=intervals.source.equals("AUTO");
         var waiting=autoMode ? !intervals.automatic.active : intervals.sequence==0;
-        var align=Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         drawLabel(dc,x,h*0.05,"INTERVALS / " + intervals.source,Graphics.TEXT_JUSTIFY_CENTER);
         var mean=intervals.meanPower();
         if (!waiting && mean!=null && !intervals.paused) {
             dc.setColor(mForeground,Graphics.COLOR_TRANSPARENT);
-            dc.drawText(x,h*0.18,Graphics.FONT_NUMBER_HOT,mean.format("%.0f"),align);
-            drawLabel(dc,x,h*0.255,"AVG POWER / W",Graphics.TEXT_JUSTIFY_CENTER);
-            var caption=durationText(intervals.seconds);
+            dc.drawText(x,h*(large ? 0.14 : 0.18),Graphics.FONT_NUMBER_HOT,mean.format("%.0f"),align);
+            drawLabel(dc,x,h*(large ? 0.21 : 0.255),"AVG POWER / W",Graphics.TEXT_JUSTIFY_CENTER);
+            var caption=intervalDurationText(intervals.seconds);
             if (autoMode && intervals.seconds<10) { caption="CONFIRMING / " + caption; }
-            drawPill(dc,x,h*0.315,caption,mMuted);
+            drawPill(dc,x,h*(large ? 0.255 : 0.315),caption,mMuted);
         } else {
             var status=intervals.paused ? "PAUSED" : "WAITING";
             if (autoMode && !intervals.paused && intervals.automatic.noPower) { status="NO POWER"; }
             else if (autoMode && !intervals.paused && intervals.automatic.historyCount<60) { status="COLLECTING"; }
             dc.setColor(mForeground,Graphics.COLOR_TRANSPARENT);
-            dc.drawText(x,h*0.195,Graphics.FONT_LARGE,status,align);
+            dc.drawText(x,h*(large ? 0.15 : 0.195),Graphics.FONT_LARGE,status,align);
             var caption="RIDE TO DETECT EFFORTS";
             if (autoMode && !intervals.paused && !intervals.automatic.noPower && intervals.automatic.historyCount<60) {
-                drawProgress(dc,margin,h*0.30,w-2*margin,10,intervals.automatic.historyCount,60);
+                drawProgress(dc,margin,h*(large ? 0.205 : 0.30),w-2*margin,10,intervals.automatic.historyCount,60);
                 caption="BASELINE " + intervals.automatic.historyCount.format("%d") + " / 60 S";
             }
-            drawLabel(dc,x,h*0.34,caption,Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc,x,h*(large ? 0.245 : 0.34),caption,Graphics.TEXT_JUSTIFY_CENTER);
         }
-        drawLabel(dc,w/4,h*0.39,"LAST EFFORT",Graphics.TEXT_JUSTIFY_CENTER);
-        drawLabel(dc,w*3/4,h*0.39,"HRR60",Graphics.TEXT_JUSTIFY_CENTER);
+    }
+    private function drawIntervalSummary(dc as Graphics.Dc) as Void {
+        var w=dc.getWidth(); var h=dc.getHeight(); var margin=w/12;
+        var large=h>=700;
+        var align=Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var labelFont=large ? Graphics.FONT_SMALL : Graphics.FONT_XTINY;
+        var valueFont=large ? Graphics.FONT_MEDIUM : Graphics.FONT_SMALL;
+        dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
+        var labelsY=h*(large ? 0.29 : 0.39);
+        var valuesY=h*(large ? 0.335 : 0.425);
+        dc.drawText(w/4,labelsY,labelFont,"LAST EFFORT",align);
+        dc.drawText(w*3/4,labelsY,labelFont,"HRR60",align);
         var previous=intervals.lastMean;
-        var last=previous==null ? "--" : previous.format("%.0f") + " W / " + durationText(intervals.lastSeconds);
+        var last=previous==null ? "--" : previous.format("%.0f") + " W";
         dc.setColor(mForeground,Graphics.COLOR_TRANSPARENT);
-        dc.drawText(w/4,h*0.425,h>=700 ? Graphics.FONT_SMALL : Graphics.FONT_XTINY,last,align);
+        dc.drawText(w/4,valuesY,valueFont,last,align);
         var hrValue=recovery.delta;
-        var response=hrValue==null ? recovery.reason : hrValue.format("%+.0f") + " BPM";
+        var response=hrValue==null ? recovery.reason : hrValue.format("%+.0f");
         if (recovery.collecting) { response=recovery.elapsed.format("%d") + " / 60 S"; }
-        dc.drawText(w*3/4,h*0.425,Graphics.FONT_XTINY,response,align);
-        drawLabel(dc,margin,h*0.465,"POWER / W / LAST 3 MIN",Graphics.TEXT_JUSTIFY_LEFT);
-        drawIntervalPlot(dc,margin,(h*0.485).toNumber(),w-2*margin,(h*0.07).toNumber(),false);
-        drawLabel(dc,margin,h*0.575,"HEART RATE / BPM / LAST 3 MIN",Graphics.TEXT_JUSTIFY_LEFT);
-        drawIntervalPlot(dc,margin,(h*0.595).toNumber(),w-2*margin,(h*0.07).toNumber(),true);
-        drawRule(dc,margin,w-margin,h*0.68);
+        var responseFont=dc.getTextWidthInPixels(response,valueFont)<=w/2-margin ? valueFont : labelFont;
+        dc.drawText(w*3/4,valuesY,responseFont,response,align);
+        if (large) {
+            dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
+            dc.drawText(w/4,h*0.385,labelFont,previous==null ? "--:--" : intervalDurationText(intervals.lastSeconds),align);
+            dc.drawText(w*3/4,h*0.385,labelFont,"BPM / 60 S",align);
+        }
+    }
+    private function drawIntervalCharts(dc as Graphics.Dc) as Void {
+        var w=dc.getWidth(); var h=dc.getHeight(); var margin=w/12;
+        var large=h>=700;
+        var labelFont=large ? Graphics.FONT_SMALL : Graphics.FONT_XTINY;
+        dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
+        dc.drawText(margin,h*(large ? 0.425 : 0.465),labelFont,"POWER (W) / 3 MIN",Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawIntervalPlot(dc,margin,(h*(large ? 0.45 : 0.485)).toNumber(),w-2*margin,(h*(large ? 0.09 : 0.07)).toNumber(),false);
+        dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
+        dc.drawText(margin,h*(large ? 0.56 : 0.575),labelFont,"HR (BPM) / 3 MIN",Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawIntervalPlot(dc,margin,(h*(large ? 0.59 : 0.595)).toNumber(),w-2*margin,(h*(large ? 0.095 : 0.07)).toNumber(),true);
+    }
+    private function drawIntervalGauges(dc as Graphics.Dc) as Void {
+        var w=dc.getWidth(); var h=dc.getHeight(); var margin=w/12;
+        var large=h>=700;
+        drawRule(dc,margin,w-margin,h*(large ? 0.69 : 0.68));
         drawZoneGauge(dc,margin,(h*0.705).toNumber(),w-2*margin,"POWER 3S",powerText,"W",power3s,powerZones);
         drawZoneGauge(dc,margin,(h*0.845).toNumber(),w-2*margin,"HEART RATE",heartRateText,"BPM",heartRate,heartRateZones);
     }
@@ -363,12 +398,17 @@ class DriftGuardView extends WatchUi.DataField {
             if (value!=null) { count+=1; if (value<low) { low=value; } if (value>high) { high=value; } }
         }
         if (count<2) {
-            drawLabel(dc,x+w/2,y+h/2,"WAITING FOR DATA",Graphics.TEXT_JUSTIFY_CENTER); return;
+            dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
+            dc.drawText(x+w/2,y+h/2,w>=360 ? Graphics.FONT_SMALL : Graphics.FONT_XTINY,"WAITING FOR DATA",Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER); return;
         }
         if (!heart) { low=0; if (high<200) { high=200; } high+=20; }
         else { low-=5; if (low<0) { low=0; } high+=5; if (high-low<10) { high=low+10; } }
         var span=(high-low).toFloat();
-        var plotW=w-60; var plotH=h-12;
+        var axisFont=w>=360 && h>=60 ? Graphics.FONT_SMALL : Graphics.FONT_XTINY;
+        var axisWidth=dc.getTextWidthInPixels(high.format("%d"),axisFont);
+        var lowWidth=dc.getTextWidthInPixels(low.format("%d"),axisFont);
+        if (lowWidth>axisWidth) { axisWidth=lowWidth; }
+        var plotW=w-axisWidth-20; var plotH=h-12;
         var lastX=0; var lastY=0; var connected=false;
         dc.setColor(heart ? 0x2F7FE0 : mForeground,Graphics.COLOR_TRANSPARENT);
         dc.setPenWidth(2);
@@ -383,8 +423,8 @@ class DriftGuardView extends WatchUi.DataField {
         dc.setPenWidth(1);
         if (connected) { dc.fillCircle(lastX,lastY,3); }
         dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x+w-5,y+2,Graphics.FONT_XTINY,high.format("%d"),Graphics.TEXT_JUSTIFY_RIGHT);
-        if (h>=45) { dc.drawText(x+w-5,y+h-dc.getFontHeight(Graphics.FONT_XTINY)-2,Graphics.FONT_XTINY,low.format("%d"),Graphics.TEXT_JUSTIFY_RIGHT); }
+        dc.drawText(x+w-5,y+2,axisFont,high.format("%d"),Graphics.TEXT_JUSTIFY_RIGHT);
+        if (h>=2*dc.getFontHeight(axisFont)+6) { dc.drawText(x+w-5,y+h-dc.getFontHeight(axisFont)-2,axisFont,low.format("%d"),Graphics.TEXT_JUSTIFY_RIGHT); }
     }
 
     // Screen title identifies which of the two drift results is drawn large.
@@ -681,6 +721,13 @@ class DriftGuardView extends WatchUi.DataField {
     }
 
     // h:mm
+    function intervalDurationText(seconds as Number) as String {
+        if (seconds>=3600) {
+            return (seconds/3600).format("%d") + ":" + ((seconds/60)%60).format("%02d") + ":" + (seconds%60).format("%02d");
+        }
+        return (seconds/60).format("%d") + ":" + (seconds%60).format("%02d");
+    }
+
     function durationText(seconds as Number) as String {
         var minutes = seconds / 60;
         return (minutes / 60).format("%d") + ":" + (minutes % 60).format("%02d");

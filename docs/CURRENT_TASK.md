@@ -1,3 +1,13 @@
+# INTERVALS legibility — 2026-10-31
+
+Owner marked LAST EFFORT, HRR60 and both chart areas as too small in screenshots.
+Increase summary values, labels, chart axes/placeholders and plot heights on full
+Edge layout, using spare hero whitespace. Keep smaller layouts compact and analysis
+unchanged. Split rendering into small frames to preserve Garmin stack headroom.
+Run the existing rendering smoke test and simulator suites, publish release.
+
+---
+
 # INTERVALS visual consistency — 2026-10-31
 
 Owner supplied screenshots and requested a heading and graphs matching DRIFT.

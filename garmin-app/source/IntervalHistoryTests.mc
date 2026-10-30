@@ -27,3 +27,13 @@ function intervalsFullRenderingSmoke(logger as Test.Logger) as Boolean {
     field.onTimerReset();Test.assertEqual(field.intervalHistory.size,0);
     return true;
 }
+
+(:test)
+function intervalDurationsRetainSeconds(logger as Test.Logger) as Boolean {
+    var view=new DriftGuardView(false);
+    Test.assertEqual(view.intervalDurationText(30),"0:30");
+    Test.assertEqual(view.intervalDurationText(90),"1:30");
+    Test.assertEqual(view.intervalDurationText(5400),"1:30:00");
+    Test.assertEqual(view.durationText(5400),"1:30");
+    return true;
+}
