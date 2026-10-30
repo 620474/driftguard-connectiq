@@ -1,0 +1,36 @@
+{
+  "base_commit": "bb98020376c92b6b8f1ca5a8d7da0bcc431b40f9",
+  "scope": [
+    "developer-field provenance",
+    "complete calibration v1 schema"
+  ],
+  "python_tests": {
+    "passed": 53,
+    "failures": 0,
+    "errors": 0,
+    "command": "python -m unittest discover -s tests -v (cwd: validation-lab)",
+    "log": "calibration-provenance-tests.txt"
+  },
+  "builds": {
+    "production": "BUILD SUCCESSFUL",
+    "calibration": "BUILD SUCCESSFUL",
+    "sdk": "9.2.0",
+    "device": "edge1050",
+    "compiler_level": 3,
+    "commands": [
+      "./build.ps1 -Java <local-java> -Key <existing-local-key>",
+      "./build.ps1 -Java <local-java> -Key <existing-local-key> -Calibration"
+    ]
+  },
+  "garmin_source_diff": false,
+  "oracle_diff": false,
+  "fit_payload_changed": false,
+  "physical_edge_verified": false,
+  "simulator_rerun": false,
+  "limitations": [
+    "FIT identity is not cryptographic authenticity",
+    "matched_candidate does not prove compute callback identity",
+    "Physical Edge 1050 validation remains pending",
+    "Existing HTTP mock tests emit ResourceWarning"
+  ]
+}

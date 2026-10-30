@@ -1,7 +1,27 @@
 import unittest
 from datetime import datetime, timedelta
-from driftlab.calibration import compare, FIELDS
+from driftlab.calibration import compare as compare_decoded, FIELDS
+from driftlab.calibration_schema import SCHEMA, CALIBRATION_APP_ID
 from driftlab.calibration_config import ALGO_VERSION, CONFIG_CRC
+
+
+def compare(samples, messages, quality=None):
+    # Explicit trusted metadata for unit-level clock/math fixtures.
+    # Binary decoder/provenance tests below call compare_decoded directly.
+    for message in messages:
+        if 'developer_fields' not in message:
+            kind = message['type']
+            message['developer_fields'] = []
+            for name, value in message['fields'].items():
+                if name in SCHEMA:
+                    _, number, base, size = SCHEMA[name]
+                    message['developer_fields'].append(dict(name=name, value=value,
+                        application_id=CALIBRATION_APP_ID, developer_data_index=0,
+                        field_definition_number=number, base_type=base, size=size))
+        else:
+            for field in message['developer_fields']:
+                field['value'] = message['fields'].get(field['name'])
+    return compare_decoded(samples, messages, quality)
 
 
 def fixture(n=120, pause=False):
@@ -10,12 +30,21 @@ def fixture(n=120, pause=False):
     for i in range(n):
         samples.append(dict(timestamp=(start+timedelta(seconds=i)).isoformat(), power=200, hr=100,
                             running=not (pause and 30 <= i < 40)))
-    messages=[dict(type='session',fields=dict(dg_algo_version=ALGO_VERSION,dg_config_crc=CONFIG_CRC))]
+    messages=[dict(type='session',fields=dict(dg_algo_version=ALGO_VERSION,dg_config_crc=CONFIG_CRC,
+        dg_ride_drift_final=None,dg_ride_state_final=0,dg_steady_percent=0,
+        dg_power_change=None,dg_compat_drift=0.,dg_bucket_width=1,dg_compat_width=1))]
     active=[s for s in samples if s['running']]
     for i in range(len(active)//60):
         values=(60*(i+1),60,0,12000,6000,60,12000,6000,0,0)
-        row=dict(zip(FIELDS,values),dg_minute_seq=i+1,timestamp=active[(i+1)*60-1]['timestamp'])
+        row=dict(zip(FIELDS,values),dg_ef=2.,dg_ride_drift=None,dg_cadence=90,dg_minute_seq=i+1,timestamp=active[(i+1)*60-1]['timestamp'])
         messages.append(dict(type='record',fields=row))
+    for kind in ('record', 'session'):
+        definitions=[]
+        for name,(message_type,number,base,size) in SCHEMA.items():
+            if message_type==kind:
+                definitions.append(dict(name=name,application_id=CALIBRATION_APP_ID,
+                    developer_data_index=0,field_definition_number=number,base_type=base,size=size))
+        messages.append(dict(type='developer_schema',message_type=kind,fields={},developer_fields=definitions))
     return samples,messages
 
 
@@ -53,38 +82,9 @@ class CalibrationTests(unittest.TestCase):
 
 class DiagnosticFitTests(unittest.TestCase):
     def test_fit_developer_fields_decode_and_compare(self):
-        import struct, tempfile
-        from pathlib import Path
-        from test_lab import crc
-        from driftlab.fitio import read_fit
-        # Real FIT field_description messages plus developer fields in records/session.
-        definitions=[('dg_minute_seq',4,2),('dg_sample_seq',6,4),('dg_valid_seconds',2,1),
-          ('dg_reject_reason',2,1),('dg_min_power_sum',6,4),('dg_min_hr_sum',4,2),
-          ('dg_compat_seconds',2,1),('dg_compat_power_sum',6,4),('dg_compat_hr_sum',4,2),
-          ('dg_steady',2,1),('dg_ride_state',2,1),('dg_algo_version',4,2),('dg_config_crc',6,4)]
-        body=bytes([0x40,0,0,207,0,1,3,1,2,0,0])
-        for i,(name,base,size) in enumerate(definitions):
-            name=name.encode()+b'\0'
-            body+=bytes([0x40,0,0,206,0,4,0,1,2,1,1,2,2,1,2,3,len(name),7])
-            body+=bytes([0,0,i,base | 0x80 if base in (4,6) else base])+name
-        # Record local definition 1 with eleven developer fields.
-        body+=bytes([0x61,0,0,20,0,3,253,4,0x86,7,2,0x84,3,1,2,11])
-        for i,(_,_,size) in enumerate(definitions[:11]):body+=bytes([i,size,0])
-        for second in range(120):
-            complete=(second+1)//60
-            values=[complete,complete*60,60 if complete else 0,0,12000 if complete else 0,6000 if complete else 0,
-                    60 if complete else 0,12000 if complete else 0,6000 if complete else 0,0,0]
-            body+=bytes([1])+struct.pack('<IHB',1162224000+second,200,100)
-            for value,(_,_,size) in zip(values,definitions):body+=value.to_bytes(size,'little')
-        body+=bytes([0x62,0,0,18,0,0,2,11,2,0,12,4,0])
-        body+=bytes([2])+struct.pack('<HI',ALGO_VERSION,CONFIG_CRC)
-        data=struct.pack('<BBHI4s',12,0x20,2100,len(body),b'.FIT')+body
-        with tempfile.TemporaryDirectory() as d:
-            p=Path(d)/'calibration.fit';p.write_bytes(data+struct.pack('<H',crc(data)))
-            samples,quality,messages=read_fit(p)
-            self.assertEqual(messages[-1]['fields']['dg_config_crc'],CONFIG_CRC)
-            self.assertEqual(compare(samples,messages,quality)['status'],'matched_candidate')
-
+        from fit_fixtures import decode_fixture
+        samples,quality,messages=decode_fixture()
+        self.assertEqual(compare_decoded(samples,messages,quality)['status'],'matched_candidate')
 
 
 class ContractTests(unittest.TestCase):

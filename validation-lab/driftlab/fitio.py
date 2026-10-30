@@ -6,12 +6,44 @@ import fitdecode
 
 def read_fit(path):
     messages, records, events = [], [], []
+    applications = {}
+
+    def metadata(definition):
+        return dict(name=definition.name, developer_data_index=definition.dev_data_index,
+                    application_id=applications.get(definition.dev_data_index),
+                    field_definition_number=definition.def_num,
+                    base_type=definition.base_type.identifier, size=definition.size)
+
     with fitdecode.FitReader(str(path), check_crc=fitdecode.CrcCheck.RAISE) as reader:
         for frame in reader:
+            if isinstance(frame, fitdecode.FitDefinitionMessage):
+                if frame.dev_field_defs:
+                    messages.append(dict(type='developer_schema', fields={}, message_type=frame.name,
+                                         developer_fields=[metadata(d) for d in frame.dev_field_defs]))
+                continue
             if not isinstance(frame, fitdecode.FitDataMessage):
                 continue
-            data = {f.name: f.value for f in frame.fields}
-            messages.append(dict(type=frame.name,fields=data))
+            # Keep native fields separate: same-name developers must not overwrite them.
+            data = {f.name: f.value for f in frame.fields
+                    if f.field_def is None or not f.field_def.is_dev}
+            if frame.name == 'developer_data_id':
+                index = frame.get_raw_value('developer_data_index', fallback=None)
+                raw = frame.get_raw_value('application_id', fallback=None)
+                try:
+                    app = bytes(raw).hex() if raw is not None and len(raw) == 16 else None
+                except (TypeError, ValueError):
+                    app = None
+                if index in applications and applications[index] != app:
+                    messages.append(dict(type='developer_identity_conflict', fields={'index': index}))
+                applications[index] = app
+            developers = [dict(metadata(f.field_def), value=f.value) for f in frame.fields
+                          if f.field_def is not None and f.field_def.is_dev]
+            # Legacy consumers may use unambiguous names, while calibration uses metadata only.
+            names = [f['name'] for f in developers]
+            for field in developers:
+                if names.count(field['name']) == 1 and field['name'] not in data:
+                    data[field['name']] = field['value']
+            messages.append(dict(type=frame.name, fields=data, developer_fields=developers))
             if frame.name == 'record':
                 records.append(data)
             elif frame.name == 'event' and data.get('event') == 'timer':

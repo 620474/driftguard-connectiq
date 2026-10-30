@@ -1,0 +1,66 @@
+test_401_reauthorize (test_api.ApiTests.test_401_reauthorize) ... C:\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 401: 'expired'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+ok
+test_429_retry (test_api.ApiTests.test_429_retry) ... C:\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 429: 'limited'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+ok
+test_empty_key (test_api.ApiTests.test_empty_key) ... ok
+test_exchange_bearer (test_api.ApiTests.test_exchange_bearer) ... ok
+test_no_error_body_disclosure (test_api.ApiTests.test_no_error_body_disclosure) ... ok
+test_zip_and_incremental (test_api.ApiTests.test_zip_and_incremental) ... ok
+test_exact_boundaries (test_calibration.CalibrationTests.test_exact_boundaries) ... ok
+test_exact_integer_mismatch (test_calibration.CalibrationTests.test_exact_integer_mismatch) ... ok
+test_identical_adjacent_minutes_and_repeated_records (test_calibration.CalibrationTests.test_identical_adjacent_minutes_and_repeated_records) ... ok
+test_missing_conflicting_and_unknown_config (test_calibration.CalibrationTests.test_missing_conflicting_and_unknown_config) ... ok
+test_missing_sensors_and_zero_power (test_calibration.CalibrationTests.test_missing_sensors_and_zero_power) ... ok
+test_pause_inside_minute (test_calibration.CalibrationTests.test_pause_inside_minute) ... ok
+test_wrong_boundary (test_calibration.CalibrationTests.test_wrong_boundary) ... ok
+test_crc_and_source_thresholds (test_calibration.ContractTests.test_crc_and_source_thresholds) ... ok
+test_power_and_compression_boundaries (test_calibration.ContractTests.test_power_and_compression_boundaries) ... C:\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 403: 'SECRET'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+ok
+test_fit_developer_fields_decode_and_compare (test_calibration.DiagnosticFitTests.test_fit_developer_fields_decode_and_compare) ... ok
+test_compression (test_lab.LabTests.test_compression) ... ok
+test_compression_preserves_sums_but_not_arbitrary_split (test_lab.LabTests.test_compression_preserves_sums_but_not_arbitrary_split) ... ok
+test_fit_and_corrupt (test_lab.LabTests.test_fit_and_corrupt) ... ok
+test_histogram (test_lab.LabTests.test_histogram) ... ok
+test_incremental (test_lab.LabTests.test_incremental) ... ok
+test_labels (test_lab.LabTests.test_labels) ... ok
+test_last_hour (test_lab.LabTests.test_last_hour) ... ok
+test_long_ride (test_lab.LabTests.test_long_ride) ... ok
+test_monkey_reference_ten_percent (test_lab.LabTests.test_monkey_reference_ten_percent) ... ok
+test_monkey_reference_warmup (test_lab.LabTests.test_monkey_reference_warmup) ... ok
+test_pause (test_lab.LabTests.test_pause) ... ok
+test_power_gate (test_lab.LabTests.test_power_gate) ... ok
+test_recovery (test_lab.LabTests.test_recovery) ... ok
+test_reproducible (test_lab.LabTests.test_reproducible) ... ok
+test_smart_recording (test_lab.LabTests.test_smart_recording) ... ok
+test_timestamp_missing_pause (test_lab.LabTests.test_timestamp_missing_pause) ... ok
+test_valid_boundary (test_lab.LabTests.test_valid_boundary) ... ok
+test_both_producers_and_duplicate_names_preserved (test_provenance.ProvenanceTests.test_both_producers_and_duplicate_names_preserved) ... ok
+test_complete_calibration_contract (test_provenance.ProvenanceTests.test_complete_calibration_contract) ... ok
+test_definition_exists_but_message_field_missing (test_provenance.ProvenanceTests.test_definition_exists_but_message_field_missing) ... ok
+test_duplicate_same_producer_rejected (test_provenance.ProvenanceTests.test_duplicate_same_producer_rejected) ... ok
+test_each_required_definition_missing (test_provenance.ProvenanceTests.test_each_required_definition_missing) ... ok
+test_guid_little_endian_layout (test_provenance.ProvenanceTests.test_guid_little_endian_layout) ... ok
+test_integer_difference_is_mismatch (test_provenance.ProvenanceTests.test_integer_difference_is_mismatch) ... ok
+test_meaningful_session_float_missing (test_provenance.ProvenanceTests.test_meaningful_session_float_missing) ... ok
+test_missing_ef_value_is_incomplete (test_provenance.ProvenanceTests.test_missing_ef_value_is_incomplete) ... ok
+test_missing_integer_values_are_incomplete (test_provenance.ProvenanceTests.test_missing_integer_values_are_incomplete) ... ok
+test_missing_provenance_rejected (test_provenance.ProvenanceTests.test_missing_provenance_rejected) ... ok
+test_nullable_stale_floats_allowed (test_provenance.ProvenanceTests.test_nullable_stale_floats_allowed) ... ok
+test_production_and_unknown_uuid_rejected (test_provenance.ProvenanceTests.test_production_and_unknown_uuid_rejected) ... ok
+test_sequence_gaps_and_conflicts_incomplete (test_provenance.ProvenanceTests.test_sequence_gaps_and_conflicts_incomplete) ... ok
+test_source_identity_redefinition_rejected (test_provenance.ProvenanceTests.test_source_identity_redefinition_rejected) ... ok
+test_state_difference_not_hidden_by_float_tolerance (test_provenance.ProvenanceTests.test_state_difference_not_hidden_by_float_tolerance) ... ok
+test_two_calibration_indices_ambiguous (test_provenance.ProvenanceTests.test_two_calibration_indices_ambiguous) ... ok
+test_wrong_type_size_id_and_message (test_provenance.ProvenanceTests.test_wrong_type_size_id_and_message) ... ok
+test_intervals_failure_has_no_secrets (test_research.ResearchApiTests.test_intervals_failure_has_no_secrets) ... C:\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 403: 'synthetic-secret'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+ok
+test_intervals_read_only_auth_contract (test_research.ResearchApiTests.test_intervals_read_only_auth_contract) ... ok
+
+----------------------------------------------------------------------
+Ran 53 tests in 4.680s
+
+OK

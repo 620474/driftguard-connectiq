@@ -4,6 +4,7 @@ import json
 from .calibration_config import ALGO_VERSION, CONFIG_CRC
 from .fitio import read_fit
 from .oracle import Engine
+from .calibration_schema import validate_messages
 
 REASONS = {'warm-up': 0, 'insufficient valid seconds': 1, 'power out of band': 2,
            'recovery after unstable minute': 3, 'steady': 4}
@@ -14,6 +15,10 @@ FIELDS = ('dg_sample_seq', 'dg_valid_seconds', 'dg_reject_reason', 'dg_min_power
 
 
 def compare(samples, messages, quality=None):
+    messages, status, issues = validate_messages(messages)
+    if status:
+        return dict(status=status, issues=issues)
+
     sessions = [m['fields'] for m in messages if m['type'] == 'session']
     if len(sessions) != 1 or sessions[0].get('dg_algo_version') != ALGO_VERSION or sessions[0].get('dg_config_crc') != CONFIG_CRC:
         return dict(status='unsupported', issues=['missing/unsupported version or config, or multiple sessions'])
@@ -70,6 +75,9 @@ def compare(samples, messages, quality=None):
         # Retained drift is meaningful only in VALID; integer/state checks stay exact.
         if target['drift'] is not None and snapshot['dg_ride_state'] == 4:
             value = row.get('dg_ride_drift')
+            if value is None:
+                issues.append(f'missing VALID record drift: {seq}')
+                continue
             if not isinstance(value, (int, float)) or not abs(value - target['drift']) <= .001:
                 differences.append(dict(minute=seq, field='dg_ride_drift', device=value, oracle=target['drift']))
     session = sessions[0]
@@ -84,8 +92,11 @@ def compare(samples, messages, quality=None):
         if key in session and session[key] != value:
             differences.append(dict(field=key, device=session[key], oracle=value))
     for key, value in float_session.items():
-        if key in session and value is not None:
-            device = session[key]
+        if value is not None:
+            device = session.get(key)
+            if device is None:
+                issues.append(f'missing meaningful session value: {key}')
+                continue
             if not isinstance(device, (int, float)) or not abs(device-value) <= .001:
                 differences.append(dict(field=key, device=device, oracle=value))
     missing = sorted(set(expected) - set(observed))
@@ -93,7 +104,7 @@ def compare(samples, messages, quality=None):
         issues.append(f'missing completed minutes: {missing}')
     if not observed:
         issues.append('no diagnostic snapshots')
-    return dict(status='mismatch' if differences else 'incomplete' if issues else 'matched_candidate',
+    return dict(status='incomplete' if issues else 'mismatch' if differences else 'matched_candidate',
                 compared_minutes=len(observed), oracle_minutes=len(expected), partial_samples=len(pending),
                 issues=issues, differences=differences, quality=quality,
                 limitation='FIT samples cannot prove identity to live compute callbacks; no offsets fitted')
