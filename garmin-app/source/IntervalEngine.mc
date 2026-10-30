@@ -58,4 +58,3 @@ class IntervalEngine {
         return validPower == 0 ? null : powerSum / validPower;
     }
 }
-

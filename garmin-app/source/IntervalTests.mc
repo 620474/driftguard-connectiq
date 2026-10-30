@@ -58,4 +58,3 @@ function intervalLateLoadAndReset(logger as Test.Logger) as Boolean {
     Test.assertEqual(e.seconds, 0); Test.assert(e.lastMean == null);
     return true;
 }
-
