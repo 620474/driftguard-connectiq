@@ -1,0 +1,35 @@
+{
+  "base_sha": "7a35a189d67db91f16bf1d762296f45d9556a77a",
+  "auto_enabled": true,
+  "configuration": "balanced v1; engineering candidate, not validated optimum",
+  "python_tests": 68,
+  "production_simulator": {
+    "passed": 30,
+    "failed": 0,
+    "errors": 0
+  },
+  "calibration_simulator": {
+    "passed": 33,
+    "failed": 0,
+    "errors": 0
+  },
+  "parity": {
+    "streams": 5,
+    "samples": 800,
+    "checks": "active/sequence/duration/sum and completed mean/boundaries/partial vs Python",
+    "generator": "validation-lab/tools/generate_auto_tests.py"
+  },
+  "builds": "production/calibration normal/test: strict level 3, edge1050 SDK 9.2.0",
+  "unchanged": [
+    "DriftEngine",
+    "IntervalEngine explicit segmentation",
+    "FIT contracts"
+  ],
+  "limitations": [
+    "No physical Edge test",
+    "Visual inspection unavailable: simulator exposes no targetable window",
+    "Workout source has no automatic end detection; activity reset returns AUTO",
+    "Historic sparse FIT is not identical to compute callbacks",
+    "Numeric boundary/long Float accumulation needs device validation"
+  ]
+}

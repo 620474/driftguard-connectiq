@@ -8,7 +8,7 @@ import Toybox.WatchUi;
 class DriftGuardView extends WatchUi.DataField {
     private const POWER_AVERAGE_SECONDS = 3;
     private const SCREEN_STORAGE_KEY = "screen";
-    var intervals as IntervalEngine;
+    var intervals as IntervalSession;
     var intervalScreen as Boolean = false;
     // Garmin's usual zone colors: gray, blue, green, orange, red, then yellow/purple
     // for 7-zone power models (inserted so the order stays cool to hot).
@@ -52,7 +52,7 @@ class DriftGuardView extends WatchUi.DataField {
         driftEngine = new DriftEngine(null);
         recorder = new DriftRecorder(recordFit ? self : null);
         loadZones();
-        intervals = new IntervalEngine();
+        intervals = new IntervalSession();
         loadScreen();
     }
 
@@ -224,24 +224,40 @@ class DriftGuardView extends WatchUi.DataField {
     }
 
     private function drawIntervals(dc as Graphics.Dc) as Void {
-        var x = dc.getWidth() / 2;
-        var h = dc.getHeight();
-        var align = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
-        var compact = h < 150;
-        var title = intervals.sequence == 0 ? "INTERVALS" : "SEG " + intervals.sequence.format("%d");
-        drawLabel(dc, x, h * 0.13, title, Graphics.TEXT_JUSTIFY_CENTER);
-        if (intervals.sequence == 0) {
-            drawLabel(dc, x, h * 0.45, "WAITING", Graphics.TEXT_JUSTIFY_CENTER);
-            drawLabel(dc, x, h * 0.78, compact ? "PRESS LAP" : "START WORKOUT / LAP", Graphics.TEXT_JUSTIFY_CENTER);
+        var x=dc.getWidth()/2;
+        var h=dc.getHeight();
+        var align=Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var compact=h<150;
+        var autoMode=intervals.source.equals("AUTO");
+        var waiting=autoMode ? !intervals.automatic.active : intervals.sequence==0;
+        var title=autoMode ? "AUTO EFFORT" : "SEG " + intervals.sequence.format("%d");
+        if (autoMode && intervals.automatic.active && intervals.seconds<10) { title="CONFIRMING"; }
+        drawLabel(dc,x,h*0.12,title,Graphics.TEXT_JUSTIFY_CENTER);
+        if (waiting) {
+            var status=intervals.paused ? "PAUSED" : "WAITING";
+            if (!intervals.paused && autoMode && intervals.automatic.noPower) { status="NO POWER"; }
+            else if (!intervals.paused && autoMode && intervals.automatic.historyCount<60) {
+                status="BASELINE " + intervals.automatic.historyCount.format("%d") + "/60 s";
+            }
+            drawLabel(dc,x,h*0.38,status,Graphics.TEXT_JUSTIFY_CENTER);
+            var last=intervals.lastMean;
+            var caption=last==null ? "RIDE TO DETECT" : "LAST " + last.format("%.0f") + " W / " + intervals.lastSeconds.format("%d") + " s";
+            drawLabel(dc,x,h*0.66,caption,Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc,x,h*0.86,intervals.lastInterrupted ? "LAST INCOMPLETE" : "AUTO",Graphics.TEXT_JUSTIFY_CENTER);
             return;
         }
-        var mean = intervals.meanPower();
-        var text = mean == null ? "-- W" : mean.format("%.0f") + " W";
-        dc.drawText(x, h * 0.40, compact ? Graphics.FONT_MEDIUM : Graphics.FONT_NUMBER_MEDIUM, text, align);
-        var elapsed = (intervals.seconds / 60).format("%d") + ":" + (intervals.seconds % 60).format("%02d");
-        drawLabel(dc, x, h * 0.65, (intervals.paused ? "PAUSED " : "") + elapsed +
-            "  " + intervals.validPower.format("%d") + "/" + intervals.seconds.format("%d") + " PWR", Graphics.TEXT_JUSTIFY_CENTER);
-        drawLabel(dc, x, h * 0.86, intervals.source + (intervals.interrupted ? " / INTERRUPTED" : ""), Graphics.TEXT_JUSTIFY_CENTER);
+        var mean=intervals.meanPower();
+        var text=mean==null ? "--" : mean.format("%.0f");
+        if (compact) { text+=" W"; }
+        dc.drawText(x,h*0.40,compact ? Graphics.FONT_MEDIUM : Graphics.FONT_NUMBER_MEDIUM,text,align);
+        if (!compact) { drawLabel(dc,x,h*0.52,"AVG POWER (W)",Graphics.TEXT_JUSTIFY_CENTER); }
+        var elapsed=(intervals.seconds/60).format("%d") + ":" + (intervals.seconds%60).format("%02d");
+        var detail=(intervals.paused ? "PAUSED " : "") + elapsed;
+        if (!autoMode && !compact) { detail+=" / " + intervals.validPower.format("%d") + " PWR samples"; }
+        drawLabel(dc,x,h*0.65,detail,Graphics.TEXT_JUSTIFY_CENTER);
+        var footer=autoMode ? "AUTO / #" + intervals.sequence.format("%d") : intervals.source;
+        if (intervals.interrupted) { footer+=" / INTERRUPTED"; }
+        drawLabel(dc,x,h*0.86,footer,Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // Screen title identifies which of the two drift results is drawn large.
