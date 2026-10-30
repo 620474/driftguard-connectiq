@@ -263,6 +263,21 @@ class DriftEngine {
         return metric == METRIC_RIDE ? mRideResult : mLastResult;
     }
 
+    (:calibration)
+    var calibrationMinute as Array<Number> = [0,0,0,0,0,0,0] as Array<Number>;
+
+    (:calibration)
+    function captureCalibration(steady as Boolean) as Void {
+        var reason = mMinutes < mWarmupMinutes ? 0 :
+            mValidSeconds < MIN_STEADY_VALID_SECONDS ? 1 :
+            steady ? 4 : mRecoveryLeft == RECOVERY_MINUTES ? 2 : 3;
+        calibrationMinute = [mValidSeconds, mPowerSum, mHeartRateSum,
+            mCompatSeconds, mCompatPowerSum, mCompatHeartRateSum, reason] as Array<Number>;
+    }
+
+    (:production)
+    function captureCalibration(steady as Boolean) as Void {}
+
     private function commitMinute() as Void {
         var isSteady = false;
         if (mMinutes >= mWarmupMinutes) {
@@ -291,6 +306,7 @@ class DriftEngine {
                 mRide.addMinute(0, 0, 0);
             }
         }
+        captureCalibration(isSteady);
         mHistory.addMinute(mPowerSum, mHeartRateSum, mValidSeconds, isSteady);
         mCompat.addMinute(mCompatPowerSum, mCompatHeartRateSum, mCompatSeconds);
         mMinutes += 1;

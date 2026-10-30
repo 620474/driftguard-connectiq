@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-30",
+  "base_revision": "7d6b5c1123e208ef64e4911a662392cfdf0a9810",
+  "python_tests": 35,
+  "calibration_simulator_tests": 24,
+  "production_simulator_tests": 21,
+  "failed_tests": 0,
+  "simulator_runner_exit_code": 1,
+  "simulator_summary": "PASSED",
+  "builds": [
+    "production",
+    "production-tests",
+    "calibration",
+    "calibration-tests"
+  ],
+  "sdk": "9.2.0",
+  "target": "edge1050",
+  "record_bytes": 32,
+  "session_bytes": 24,
+  "production_math_and_thresholds_changed": false,
+  "push": false,
+  "pr": false,
+  "physical_device_verified": false,
+  "float_boundary_difference": "Exact 5% gate: Python double POWER_CHANGED, Monkey C Float VALID on tested fixture",
+  "limitations": [
+    "No physical FIT capture or CPU/memory profiling",
+    "FIT is not proof of identical live callbacks",
+    "No diagnostic records in the historical archive",
+    "No median/recovery-left in RECORD budget",
+    "Parser assumes unique dg_* names; do not run production alongside calibration"
+  ]
+}

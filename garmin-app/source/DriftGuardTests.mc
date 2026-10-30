@@ -445,3 +445,64 @@ function addSeconds(engine as DriftEngine, count as Number, power as Number?,
         engine.addSample(power, heartRate, isTimerRunning);
     }
 }
+
+(:test, :calibration)
+function calibrationBoundaries(logger as Test.Logger) as Boolean {
+    var e = new DriftEngine(0);
+    addSeconds(e, 59, 200, 100, true);
+    Test.assertEqual(e.getMinutes(), 0);
+    addSeconds(e, 100, 999, 199, false);
+    Test.assertEqual(e.mSecond, 59);
+    addSeconds(e, 1, 200, 100, true);
+    Test.assertEqual(e.getMinutes(), 1);
+    Test.assertEqual(e.calibrationMinute[0], 60);
+    Test.assertEqual(e.calibrationMinute[1], 12000);
+    Test.assertEqual(e.calibrationMinute[2], 6000);
+    Test.assertEqual(e.calibrationMinute[6], 4);
+    addSeconds(e, 1, 200, 100, true);
+    Test.assertEqual(e.getMinutes(), 1);
+    e.reset();
+    Test.assertEqual(e.getMinutes(), 0);
+    return true;
+}
+
+(:test, :calibration)
+function calibrationReasons(logger as Test.Logger) as Boolean {
+    var e = new DriftEngine(0);
+    addSeconds(e, 47, 200, 100, true);
+    addSeconds(e, 13, 0, 100, true);
+    Test.assertEqual(e.calibrationMinute[0], 47);
+    Test.assertEqual(e.calibrationMinute[3], 60);
+    Test.assertEqual(e.calibrationMinute[6], 1);
+    for (var i = 0; i < 3; i += 1) {
+        addMinutes(e, 1, 200, 100);
+        Test.assertEqual(e.calibrationMinute[6], 3);
+    }
+    addMinutes(e, 1, 200, 100);
+    Test.assertEqual(e.calibrationMinute[6], 4);
+    addMinutes(e, 1, 400, 100);
+    Test.assertEqual(e.calibrationMinute[6], 2);
+    return true;
+}
+
+(:test, :calibration)
+function calibrationPowerGateAndCompression(logger as Test.Logger) as Boolean {
+    var e = new DriftEngine(0);
+    addMinutes(e, 20, 200, 100);
+    addMinutes(e, 20, 210, 100);
+    Test.assertEqual(e.getState(METRIC_RIDE), DRIFT_VALID);
+    e.reset();
+    addMinutes(e, 20, 200, 100);
+    addMinutes(e, 20, 211, 100);
+    Test.assertEqual(e.getState(METRIC_RIDE), DRIFT_POWER_CHANGED);
+    e.reset();
+    addMinutes(e, 240, 200, 100);
+    Test.assertEqual(e.mRide.getMinutesPerBucket(), 1);
+    addMinutes(e, 1, 200, 100);
+    Test.assertEqual(e.mRide.getMinutesPerBucket(), 2);
+    addMinutes(e, 240, 200, 100);
+    Test.assertEqual(e.mRide.getMinutesPerBucket(), 4);
+    addMinutes(e, 480, 200, 100);
+    Test.assertEqual(e.mRide.getMinutesPerBucket(), 8);
+    return true;
+}

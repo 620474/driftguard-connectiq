@@ -134,3 +134,6 @@ the tap toggle were checked by screenshot with a synthetic ride; the field ran i
 the simulator with FIT recording enabled. Still to verify on a physical Edge:
 sensor-dropout timing, auto-pause, onTap, readability, the FIT fields in
 Intervals.icu, and the thresholds on real ride files.
+## Calibration build
+
+Use build.ps1 -Calibration for the separate Edge 1050 app. See [installation and validation](../docs/CALIBRATION_RU.md).

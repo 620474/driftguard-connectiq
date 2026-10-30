@@ -1,0 +1,103 @@
+------------------------------------------------------------------------------
+Executing test liveReadings...
+PASS
+------------------------------------------------------------------------------
+Executing test missingReadings...
+PASS
+------------------------------------------------------------------------------
+Executing test powerIsAveragedOverThreeSeconds...
+PASS
+------------------------------------------------------------------------------
+Executing test ratioShowsLastFullMinute...
+PASS
+------------------------------------------------------------------------------
+Executing test driftWaitsForWarmupThenReportsRideDrift...
+PASS
+------------------------------------------------------------------------------
+Executing test driftKeepsUpdatingOnLongRide...
+PASS
+------------------------------------------------------------------------------
+Executing test driftExcludesClimbAndHeartRateRecovery...
+PASS
+------------------------------------------------------------------------------
+Executing test driftIgnoresPausedTimer...
+PASS
+------------------------------------------------------------------------------
+Executing test driftTreatsCoastingMinuteAsNotSteady...
+PASS
+------------------------------------------------------------------------------
+Executing test driftReportsHillyRideAsNotSteady...
+PASS
+------------------------------------------------------------------------------
+Executing test driftRefusesHalvesAtDifferentPower...
+PASS
+------------------------------------------------------------------------------
+Executing test fieldFallsBackToTheMetricThatHasAValue...
+PASS
+------------------------------------------------------------------------------
+Executing test compatDriftMatchesIntervalsStyle...
+PASS
+------------------------------------------------------------------------------
+Executing test labelsUseHysteresisAndNeutralNegative...
+PASS
+------------------------------------------------------------------------------
+Executing test recorderAveragesPedallingCadencePerMinute...
+PASS
+------------------------------------------------------------------------------
+Executing test rideBucketsMergeWithoutChangingResult...
+PASS
+------------------------------------------------------------------------------
+Executing test historyKeepsLastHourAndComputesItsDrift...
+PASS
+------------------------------------------------------------------------------
+Executing test driftResetsForNextActivity...
+PASS
+------------------------------------------------------------------------------
+Executing test tapTogglesMainMetric...
+PASS
+------------------------------------------------------------------------------
+Executing test labelsAndFormatting...
+PASS
+------------------------------------------------------------------------------
+Executing test zonesMapValuesOntoEqualWidthGauge...
+PASS
+------------------------------------------------------------------------------
+Executing test calibrationBoundaries...
+PASS
+------------------------------------------------------------------------------
+Executing test calibrationReasons...
+PASS
+------------------------------------------------------------------------------
+Executing test calibrationPowerGateAndCompression...
+PASS
+
+==============================================================================
+RESULTS
+Test:                                     Status:
+liveReadings                              PASS
+missingReadings                           PASS
+powerIsAveragedOverThreeSeconds           PASS
+ratioShowsLastFullMinute                  PASS
+driftWaitsForWarmupThenReportsRideDrift   PASS
+driftKeepsUpdatingOnLongRide              PASS
+driftExcludesClimbAndHeartRateRecovery    PASS
+driftIgnoresPausedTimer                   PASS
+driftTreatsCoastingMinuteAsNotSteady      PASS
+driftReportsHillyRideAsNotSteady          PASS
+driftRefusesHalvesAtDifferentPower        PASS
+fieldFallsBackToTheMetricThatHasAValue    PASS
+compatDriftMatchesIntervalsStyle          PASS
+labelsUseHysteresisAndNeutralNegative     PASS
+recorderAveragesPedallingCadencePerMinute PASS
+rideBucketsMergeWithoutChangingResult     PASS
+historyKeepsLastHourAndComputesItsDrift   PASS
+driftResetsForNextActivity                PASS
+tapTogglesMainMetric                      PASS
+labelsAndFormatting                       PASS
+zonesMapValuesOntoEqualWidthGauge         PASS
+calibrationBoundaries                     PASS
+calibrationReasons                        PASS
+calibrationPowerGateAndCompression        PASS
+Ran 24 tests
+
+PASSED (passed=24, failed=0, errors=0)

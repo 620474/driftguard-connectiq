@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "driftguard-validation-lab"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fitdecode==0.11.0", "python-dateutil==2.9.0.post0"]
+[project.scripts]
+driftlab = "driftlab.cli:main"
+[tool.setuptools.packages.find]
+include = ["driftlab*"]
+[tool.setuptools.package-data]
+driftlab = ["*.html"]
