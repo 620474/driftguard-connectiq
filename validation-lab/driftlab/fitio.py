@@ -1,5 +1,6 @@
 """Strict FIT decoding and conservative one-second timeline reconstruction."""
 from datetime import timedelta
+from collections import defaultdict
 from pathlib import Path
 import fitdecode
 
@@ -76,20 +77,40 @@ def normalize(records, events):
     start, end = min(bytime),max(bytime)
     if (end-start).total_seconds()>7*86400:
         raise ValueError('timeline exceeds seven days; refusing expansion')
+    # Retain raw events in read_fit's messages; this timeline is an explicit proxy.
+    # Missing event_group is the legacy implicit group only when no group is given.
+    groups = {e.get('event_group') for e in events}
+    multiple_groups = len(groups) > 1
+    chosen_group = min(groups, key=lambda x: (x is None, str(x))) if groups else None
+    if multiple_groups:
+        issues.append('multiple timer groups; deterministic single-group proxy only')
+    selected = [e for e in events if e.get('event_group') == chosen_group]
+    batches = defaultdict(set)
+    stops = ('stop','stop_all','stop_disable','stop_disable_all')
+    for event in selected:
+        kind = event.get('event_type')
+        if kind == 'start':
+            batches[event['timestamp']].add(True)
+        elif kind in stops:
+            batches[event['timestamp']].add(False)
+        else:
+            issues.append('unrecognized timer event')
+    conflicts = any(len(values) > 1 for values in batches.values())
+    if conflicts:
+        issues.append('conflicting simultaneous timer events; stop wins in proxy')
     if not events:
         issues.append('timer events absent; timer assumed running')
+    initial_unknown = not any(time <= start for time in batches)
+    if initial_unknown:
+        issues.append('initial timer state unknown; running assumed until first known event')
+    timeline = sorted(batches.items())
     running, ei, samples, missing = True,0,[],0
     t = start
     while t <= end:
-        while ei<len(events) and events[ei]['timestamp']<=t:
-            kind=events[ei].get('event_type')
-            if kind=='start':
-                running=True
-            elif kind in ('stop','stop_all','stop_disable','stop_disable_all'):
-                running=False
-            else:
-                issues.append('unrecognized timer event')
-            ei+=1
+        while ei < len(timeline) and timeline[ei][0] <= t:
+            # min gives stop precedence; independent of input list ordering.
+            running = min(timeline[ei][1])
+            ei += 1
         r=bytime.get(t,{})
         if not r and running:
             missing+=1
@@ -105,4 +126,6 @@ def normalize(records, events):
         status='insufficient'
     # Even 1 Hz FIT cannot prove equality to compute() calls; candidate != exact.
     return samples,dict(status=status,issues=sorted(set(issues)),missing_seconds=missing,
-                        missing_sensor_seconds=missing_sensor,active_seconds=active,wall_seconds=len(samples))
+                        missing_sensor_seconds=missing_sensor,active_seconds=active,wall_seconds=len(samples),
+                        timer_ambiguous=initial_unknown or multiple_groups or conflicts,
+                        timer_group=chosen_group, timer_policy='single-group; stop wins; unknown prefix assumes running')

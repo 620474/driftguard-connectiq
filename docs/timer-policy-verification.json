@@ -1,0 +1,30 @@
+{
+  "files": 122,
+  "statuses": {
+    "comparison_candidate": 93,
+    "approximate": 28,
+    "insufficient": 1
+  },
+  "timer_ambiguous": 18,
+  "issues": {
+    "conflicting simultaneous timer events; stop wins in proxy": 18,
+    "missing seconds inserted with null sensors; no interpolation": 13
+  },
+  "python_tests": 60,
+  "base_sha": "8f9a55558eda8349e49a71ed70a07ff0a61b9245",
+  "generated_monkey_streams": {
+    "count": 22,
+    "result": "NOT TESTABLE: two attempts, including simulator restart; no summary, runner stopped"
+  },
+  "scope": "FIT inventory/timer and previous 41 windows in two representations re-audited",
+  "physical_edge": "not performed",
+  "window_reaudit": {
+    "windows": 82,
+    "unique_windows": 41,
+    "representations": 2,
+    "arithmetic_pass": 82,
+    "changed_sample_counts": 0,
+    "timer_ambiguous_representations": 28,
+    "limitation": "Arithmetic on previously reconstructed windows, not exact callback boundaries"
+  }
+}

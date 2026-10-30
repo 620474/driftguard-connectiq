@@ -1,3 +1,12 @@
+# Дополнение владельца — 2026-10-31
+
+Два отдельных коммита: (1) offline timer quality policy + регрессии и повторный аудит;
+(2) offline-прототип автоматического выделения усилий и исследование архива.
+Production DRIFT, FIT contracts и live INTERVALS остаются без изменений.
+Автоматический детектор не переносится на Edge до отдельной проверки.
+
+---
+
 # INTERVALS — stage 1 (2026-10-31)
 
 Owner authorized implementation and push to main in the current chat.
