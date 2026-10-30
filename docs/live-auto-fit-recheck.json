@@ -1,0 +1,38 @@
+{
+  "tested_commit": "7c6ede1dcd72084063c8cded01b9a08a5b5200db",
+  "files": 122,
+  "configuration": "balanced v1, exact thresholds",
+  "efforts": 3897,
+  "activities_with_efforts": 116,
+  "complete": 3812,
+  "partial": 85,
+  "median_seconds": 37,
+  "under_30_seconds": 1650,
+  "timer_ambiguous_efforts": 1061,
+  "closure_reasons": {
+    "power_drop": 3812,
+    "pause": 83,
+    "missing_power": 2
+  },
+  "previous_balanced_count": 3897,
+  "candidate_counts": {
+    "responsive": 8059,
+    "balanced": 3897,
+    "conservative": 1894
+  },
+  "python_tests": 69,
+  "monkey_simulator_tests": 31,
+  "calibration_simulator_tests": 34,
+  "real_power_parity": {
+    "streams": 12,
+    "result": "PASS",
+    "framing": "Synthetic baseline and framing around real FIT power chunks; not natural callback validation"
+  },
+  "physical_edge_test": false,
+  "limitations": [
+    "No independent effort/race labels: precision and recall unknown",
+    "Sparse FIT inputs differ from live compute callbacks",
+    "Short and low-contrast efforts can be missed or merged",
+    "All archive data previously explored; no pristine holdout"
+  ]
+}
