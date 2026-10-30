@@ -1,3 +1,13 @@
+# INTERVALS visual consistency — 2026-10-31
+
+Owner supplied screenshots and requested a heading and graphs matching DRIFT.
+Add INTERVALS/source header, matching hero/summary typography, independent power
+and HR traces, shared zone gauges. Fixed 180-slot history; preserve missing gaps,
+zero watts, pause gaps, reset and screen independence. Analysis and FIT unchanged.
+Verify rendering in simulator, build/release and open updated production PRG.
+
+---
+
 # INTERVALS HR / raw HRR60 — 2026-10-31
 
 Owner explicitly confirmed adding current HR and raw gated HRR60 for a joint test.
