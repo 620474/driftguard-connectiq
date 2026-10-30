@@ -1,3 +1,13 @@
+# Offline power-effort prototype — 2026-10-31
+
+Timer import ambiguity fixed and real archive rechecked. Three causal power-change
+candidates added to validation-lab, with synthetic tests and private archive reports.
+This is an exploratory offline experiment, not a deployed automatic Edge mode.
+Production DriftEngine, live IntervalEngine and FIT recording are unchanged.
+See AUTO_EFFORTS_RU.md and auto-efforts-verification.json for results and limitations.
+
+---
+
 # INTERVALS stage 1 — 2026-10-31
 
 Implemented: DRIFT/INTERVALS screen switch, separate explicit-boundary segment

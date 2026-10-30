@@ -62,3 +62,16 @@ Intervals.icu и blocks.zone не нужны для получения FIT. Их
 ## Calibration Edge 1050
 
 Диагностическая сборка и сравнение новых FIT-полей: [процедура](../docs/CALIBRATION_RU.md). Команда: python -m driftlab.calibration activity.fit.
+
+
+## Experimental automatic power efforts (offline only)
+
+See [AUTO_EFFORTS_RU.md](../docs/AUTO_EFFORTS_RU.md). Run:
+
+```powershell
+python -m driftlab.auto_efforts 'C:\path\archive' --output 'C:\path\new-private-report'
+```
+
+This does not change the Edge application. The output includes private activity
+identifiers and must remain local. Three prespecified candidates are compared;
+counts do not establish accuracy without independent effort labels.

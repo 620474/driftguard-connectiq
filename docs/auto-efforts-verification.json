@@ -1,0 +1,102 @@
+{
+  "files": 122,
+  "configs": {
+    "responsive": {
+      "baseline_seconds": 60,
+      "start_ratio": 1.25,
+      "start_delta": 40,
+      "minimum_watts": 120,
+      "start_confirm": 2,
+      "end_ratio": 1.15,
+      "end_delta": 20,
+      "end_confirm": 3,
+      "minimum_seconds": 5
+    },
+    "balanced": {
+      "baseline_seconds": 60,
+      "start_ratio": 1.35,
+      "start_delta": 50,
+      "minimum_watts": 120,
+      "start_confirm": 3,
+      "end_ratio": 1.15,
+      "end_delta": 20,
+      "end_confirm": 5,
+      "minimum_seconds": 10
+    },
+    "conservative": {
+      "baseline_seconds": 60,
+      "start_ratio": 1.5,
+      "start_delta": 70,
+      "minimum_watts": 120,
+      "start_confirm": 5,
+      "end_ratio": 1.15,
+      "end_delta": 20,
+      "end_confirm": 8,
+      "minimum_seconds": 15
+    }
+  },
+  "counts": {
+    "responsive": 8059,
+    "balanced": 3897,
+    "conservative": 1894
+  },
+  "partial": {
+    "responsive": 69,
+    "balanced": 85,
+    "conservative": 113
+  },
+  "limitation": "All FITs exploratory; no independently labelled race/effort ground truth. Null grid gaps are not interpolated. Counts are sensitivity, not accuracy; this run does not select a winner or validate on-device callbacks.",
+  "statistics": {
+    "responsive": {
+      "efforts": 8059,
+      "activities": 120,
+      "complete": 7990,
+      "partial": 69,
+      "median_duration": 16,
+      "reasons": {
+        "power_drop": 7990,
+        "pause": 67,
+        "missing_power": 2
+      },
+      "ambiguous_timer_efforts": 2350,
+      "under_30s": 5481
+    },
+    "balanced": {
+      "efforts": 3897,
+      "activities": 116,
+      "complete": 3812,
+      "partial": 85,
+      "median_duration": 37,
+      "reasons": {
+        "power_drop": 3812,
+        "pause": 83,
+        "missing_power": 2
+      },
+      "ambiguous_timer_efforts": 1061,
+      "under_30s": 1650
+    },
+    "conservative": {
+      "efforts": 1894,
+      "activities": 113,
+      "complete": 1781,
+      "partial": 113,
+      "median_duration": 69.5,
+      "reasons": {
+        "power_drop": 1781,
+        "pause": 111,
+        "missing_power": 2
+      },
+      "ambiguous_timer_efforts": 521,
+      "under_30s": 422
+    }
+  },
+  "quality_counts": {
+    "comparison_candidate": 93,
+    "approximate": 28,
+    "insufficient": 1
+  },
+  "python_tests": 68,
+  "synthetic_protocols": "All 3 candidates: 30/30,40/20,60/60,180/120,600/120; 3 reps each with known boundaries. Spike/coast/over-under/pause/missing/partial/buffer tests.",
+  "input_scope": "Same frozen 122 FITs, May 1 through Oct 30 2026; exploratory, no protocol/race ground truth",
+  "on_device_auto_enabled": false
+}
