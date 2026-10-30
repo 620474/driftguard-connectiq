@@ -2,20 +2,20 @@
   "base_sha": "7a35a189d67db91f16bf1d762296f45d9556a77a",
   "auto_enabled": true,
   "configuration": "balanced v1; engineering candidate, not validated optimum",
-  "python_tests": 68,
+  "python_tests": 69,
   "production_simulator": {
-    "passed": 30,
+    "passed": 31,
     "failed": 0,
     "errors": 0
   },
   "calibration_simulator": {
-    "passed": 33,
+    "passed": 34,
     "failed": 0,
     "errors": 0
   },
   "parity": {
-    "streams": 5,
-    "samples": 800,
+    "streams": 6,
+    "samples": 895,
     "checks": "active/sequence/duration/sum and completed mean/boundaries/partial vs Python",
     "generator": "validation-lab/tools/generate_auto_tests.py"
   },
@@ -31,5 +31,6 @@
     "Workout source has no automatic end detection; activity reset returns AUTO",
     "Historic sparse FIT is not identical to compute callbacks",
     "Numeric boundary/long Float accumulation needs device validation"
-  ]
+  ],
+  "threshold_arithmetic": "exact scaled-integer comparisons in Monkey C and rational decimal ratios in Python; regression baseline 180 W, start 243 W"
 }

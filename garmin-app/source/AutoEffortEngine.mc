@@ -10,7 +10,7 @@ class AutoEffortEngine {
     private var next as Number = 0;
     private var pendingCount as Number = 0;
     private var gapCount as Number = 0;
-    private var offThreshold as Float = 0.0f;
+    private var offBaselineTwice as Number = 0;
     var active as Boolean = false;
     var noPower as Boolean = true;
     var sequence as Number = 0;
@@ -42,14 +42,14 @@ class AutoEffortEngine {
         history[next]=power; next=(next+1)%60;
         if (historyCount<60) { historyCount+=1; }
     }
-    private function baseline() as Float {
+    private function baseline() as Number {
         // Reuse scratch storage: no allocations inside the 1 Hz loop.
         for (var i=0; i<60; i+=1) {
             var value=history[i]; var j=i-1;
             while (j>=0 && sorted[j]>value) { sorted[j+1]=sorted[j]; j-=1; }
             sorted[j+1]=value;
         }
-        return (sorted[29].toFloat()+sorted[30])/2.0f;
+        return sorted[29]+sorted[30];
     }
     private function close(partial as Boolean) as Void {
         if (active && seconds>=10) {
@@ -66,7 +66,7 @@ class AutoEffortEngine {
         }
         var value=power as Number;
         if (active) {
-            if (value<offThreshold) {
+            if (value*200<offBaselineTwice*115 || value*2<offBaselineTwice+40) {
                 gap[gapCount]=value; gapCount+=1;
                 if (gapCount==5) {
                     close(false);
@@ -81,17 +81,15 @@ class AutoEffortEngine {
         }
         if (historyCount<60) { idle(value); return; }
         var base=baseline();
-        var threshold=base*1.35f;
-        if (threshold<base+50) { threshold=base+50; }
-        if (threshold<120) { threshold=120.0f; }
-        if (value>=threshold) {
+        // Twice the median keeps threshold comparisons exact, including half watts.
+        // Products are bounded by 2.7 million for the 0..10000 W input contract.
+        if (value>=120 && value*200>=base*135 && value*2>=base+100) {
             pending[pendingCount]=value; pendingCount+=1;
             if (pendingCount==3) {
                 active=true; sequence+=1; seconds=3;
                 powerSum=pending[0].toFloat()+pending[1]+pending[2]; pendingCount=0;
                 startTick=tick-2; endTick=tick; detectedStart=tick;
-                offThreshold=base*1.15f;
-                if (offThreshold<base+20) { offThreshold=base+20; }
+                offBaselineTwice=base;
             }
         } else {
             for (var n=0; n<pendingCount; n+=1) { idle(pending[n]); }

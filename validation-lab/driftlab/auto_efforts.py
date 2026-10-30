@@ -6,6 +6,7 @@ Explicit workout/manual segmentation remains separate from this fallback model.
 from collections import deque
 from dataclasses import dataclass, asdict
 from statistics import median
+from fractions import Fraction
 
 @dataclass(frozen=True)
 class Config:
@@ -28,6 +29,8 @@ class Config:
 class Detector:
     def __init__(self, config=Config()):
         self.config = config
+        self.start_ratio = Fraction(str(config.start_ratio))
+        self.end_ratio = Fraction(str(config.end_ratio))
         self.history = deque(maxlen=config.baseline_seconds)
         self.pending = []
         self.gap = []
@@ -62,7 +65,9 @@ class Detector:
             return result
         row = (timestamp, power)
         if self.active is not None:
-            if power < self.active['end_threshold']:
+            base_twice = int(self.active['baseline'] * 2)
+            if (power*2*self.end_ratio.denominator < base_twice*self.end_ratio.numerator
+                    or power*2 < base_twice+2*c.end_delta):
                 self.gap.append(row)
                 if len(self.gap) >= c.end_confirm:
                     low = list(self.gap)
@@ -79,13 +84,16 @@ class Detector:
             self.history.append(power)
             return None
         baseline = median(self.history)
-        threshold = max(c.minimum_watts, baseline*c.start_ratio, baseline+c.start_delta)
-        if power >= threshold:
+        base_twice = int(baseline*2)
+        threshold = max(c.minimum_watts, float(Fraction(base_twice,2)*self.start_ratio), baseline+c.start_delta)
+        if (power >= c.minimum_watts
+                and power*2*self.start_ratio.denominator >= base_twice*self.start_ratio.numerator
+                and power*2 >= base_twice+2*c.start_delta):
             self.pending.append(row)
             if len(self.pending) >= c.start_confirm:
                 self.active = dict(start=self.pending[0][0], end=timestamp, seconds=0, power_sum=0,
                                    baseline=baseline, start_threshold=threshold,
-                                   end_threshold=max(baseline*c.end_ratio,baseline+c.end_delta),
+                                   end_threshold=max(float(Fraction(base_twice,2)*self.end_ratio),baseline+c.end_delta),
                                    detected_start=timestamp)
                 for held in self.pending:
                     self._append(held)

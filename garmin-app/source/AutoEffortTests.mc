@@ -4,6 +4,131 @@ import Toybox.Activity;
 (:test)
 function liveAutoParity0(logger as Test.Logger) as Boolean {
 var e=new AutoEffortEngine();
+e.addSample(180,true);
+Test.assertEqual(e.active,false);
+Test.assertEqual(e.sequence,0);
+Test.assertEqual(e.seconds,0);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+Test.assertEqual(e.active,false);
+Test.assertEqual(e.sequence,0);
+Test.assertEqual(e.seconds,0);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+Test.assertEqual(e.active,false);
+Test.assertEqual(e.sequence,0);
+Test.assertEqual(e.seconds,0);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(243,true);
+Test.assertEqual(e.active,false);
+Test.assertEqual(e.sequence,0);
+Test.assertEqual(e.seconds,0);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+Test.assertEqual(e.active,true);
+Test.assertEqual(e.sequence,1);
+Test.assertEqual(e.seconds,21);
+Test.assert(e.powerSum >= 5102.5f && e.powerSum <= 5103.5f);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(243,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+e.addSample(180,true);
+Test.assertEqual(e.active,false);
+Test.assertEqual(e.sequence,1);
+Test.assertEqual(e.seconds,0);
+Test.assertEqual(e.lastSeconds,30);
+Test.assertEqual(e.lastStart,60);
+Test.assertEqual(e.lastEnd,89);
+Test.assertEqual(e.detectedEnd,94);
+Test.assertEqual(e.lastPartial,false);
+Test.assert((e.lastMean as Float)>=242.99f && (e.lastMean as Float)<=243.01f);
+return true;
+}
+(:test)
+function liveAutoParity1(logger as Test.Logger) as Boolean {
+var e=new AutoEffortEngine();
 e.addSample(100,true);
 Test.assertEqual(e.active,false);
 Test.assertEqual(e.sequence,0);
@@ -364,7 +489,7 @@ Test.assert((e.lastMean as Float)>=299.99f && (e.lastMean as Float)<=300.01f);
 return true;
 }
 (:test)
-function liveAutoParity1(logger as Test.Logger) as Boolean {
+function liveAutoParity2(logger as Test.Logger) as Boolean {
 var e=new AutoEffortEngine();
 e.addSample(100,true);
 Test.assertEqual(e.active,false);
@@ -481,7 +606,7 @@ Test.assert((e.lastMean as Float)>=272.71727272727276f && (e.lastMean as Float)<
 return true;
 }
 (:test)
-function liveAutoParity2(logger as Test.Logger) as Boolean {
+function liveAutoParity3(logger as Test.Logger) as Boolean {
 var e=new AutoEffortEngine();
 e.addSample(100,true);
 Test.assertEqual(e.active,false);
@@ -715,7 +840,7 @@ Test.assert((e.lastMean as Float)>=299.99f && (e.lastMean as Float)<=300.01f);
 return true;
 }
 (:test)
-function liveAutoParity3(logger as Test.Logger) as Boolean {
+function liveAutoParity4(logger as Test.Logger) as Boolean {
 var e=new AutoEffortEngine();
 e.addSample(100,true);
 Test.assertEqual(e.active,false);
@@ -870,7 +995,7 @@ Test.assertEqual(e.seconds,0);
 return true;
 }
 (:test)
-function liveAutoParity4(logger as Test.Logger) as Boolean {
+function liveAutoParity5(logger as Test.Logger) as Boolean {
 var e=new AutoEffortEngine();
 e.addSample(100,true);
 Test.assertEqual(e.active,false);

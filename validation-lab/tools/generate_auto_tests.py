@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 from driftlab.auto_efforts import Detector
 p=Path(__file__).resolve().parents[2]
-streams=[('repeats',[(100,True)]*60+([(300,True)]*30+[(100,True)]*30)*3),('coast_gap',[(100,True)]*60+[(300,True)]*10+[(0,True)]*2+[(300,True)]*10+[(100,True)]*5),('dropouts',[(100,True)]*60+[(300,True)]*20+[(None,True)]+[(100,True)]*60+[(300,True)]*20+[(100,False)]),('spikes',[(100,True)]*60+([(400,True)]+[(100,True)]*10)*6),('over_under',[(100,True)]*60+([(300,True)]*20+[(200,True)]*20)*3+[(100,True)]*5)]
+streams=[('exact_ratio_boundary',[(180,True)]*60+[(243,True)]*30+[(180,True)]*5),('repeats',[(100,True)]*60+([(300,True)]*30+[(100,True)]*30)*3),('coast_gap',[(100,True)]*60+[(300,True)]*10+[(0,True)]*2+[(300,True)]*10+[(100,True)]*5),('dropouts',[(100,True)]*60+[(300,True)]*20+[(None,True)]+[(100,True)]*60+[(300,True)]*20+[(100,False)]),('spikes',[(100,True)]*60+([(400,True)]+[(100,True)]*10)*6),('over_under',[(100,True)]*60+([(300,True)]*20+[(200,True)]*20)*3+[(100,True)]*5)]
 code=['import Toybox.Lang;','import Toybox.Test;','import Toybox.Activity;']
 for ix,(name,rows) in enumerate(streams):
  code+=['(:test)',f'function liveAutoParity{ix}(logger as Test.Logger) as Boolean {{','var e=new AutoEffortEngine();']

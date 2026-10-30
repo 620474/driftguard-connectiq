@@ -62,3 +62,10 @@ class AutoEffortTests(unittest.TestCase):
                         self.assertEqual(effort['seconds'],duration)
                         self.assertEqual(effort['mean_power'],300)
                         self.assertFalse(effort['partial'])
+
+    def test_exact_ratio_boundary(self):
+        # Binary float 180*1.35 exceeds 243 slightly. The contract includes 243 W.
+        e=list(detect(rows([180]*60+[243]*30+[180]*5)))
+        self.assertEqual(len(e),1)
+        self.assertEqual(e[0]['seconds'],30)
+        self.assertEqual(e[0]['mean_power'],243)
