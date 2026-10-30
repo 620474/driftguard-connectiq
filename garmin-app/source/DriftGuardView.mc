@@ -255,6 +255,24 @@ class DriftGuardView extends WatchUi.DataField {
         var waiting=autoMode ? !intervals.automatic.active : intervals.sequence==0;
         var title=autoMode ? "AUTO EFFORT" : "SEG " + intervals.sequence.format("%d");
         if (autoMode && intervals.automatic.active && intervals.seconds<10) { title="CONFIRMING"; }
+        if (compact) {
+            var heading=title;
+            if (waiting) {
+                heading=intervals.paused ? "PAUSED" : "AUTO WAIT";
+                if (autoMode && !intervals.paused && intervals.automatic.noPower) { heading="NO POWER"; }
+                else if (autoMode && !intervals.paused && intervals.automatic.historyCount<60) {
+                    heading="BASE " + intervals.automatic.historyCount.format("%d") + "/60";
+                }
+            }
+            drawLabel(dc,x,h*0.16,heading,Graphics.TEXT_JUSTIFY_CENTER);
+            var current=intervals.meanPower();
+            var middle=current==null ? "-- W" : current.format("%.0f") + "W " + intervals.seconds.format("%d") + "s";
+            var previous=intervals.lastMean;
+            if (waiting && previous!=null) { middle="LAST " + previous.format("%.0f") + "W"; }
+            drawLabel(dc,x,h*0.48,middle,Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc,x,h*0.80,"HR" + heartRateText + " " + recovery.inlineText(),Graphics.TEXT_JUSTIFY_CENTER);
+            return;
+        }
         drawLabel(dc,x,h*0.12,title,Graphics.TEXT_JUSTIFY_CENTER);
         if (waiting) {
             var status=intervals.paused ? "PAUSED" : "WAITING";
@@ -272,9 +290,9 @@ class DriftGuardView extends WatchUi.DataField {
         }
         var mean=intervals.meanPower();
         var text=mean==null ? "--" : mean.format("%.0f");
-        if (compact) { text+=" W"; }
-        dc.drawText(x,h*0.40,compact ? Graphics.FONT_MEDIUM : Graphics.FONT_NUMBER_MEDIUM,text,align);
-        if (!compact) { drawLabel(dc,x,h*0.52,"AVG POWER (W)",Graphics.TEXT_JUSTIFY_CENTER); }
+        if (h<300) { text+=" W"; }
+        dc.drawText(x,h*0.40,h<300 ? Graphics.FONT_MEDIUM : Graphics.FONT_NUMBER_MEDIUM,text,align);
+        if (h>=300) { drawLabel(dc,x,h*0.52,"AVG POWER (W)",Graphics.TEXT_JUSTIFY_CENTER); }
         var elapsed=(intervals.seconds/60).format("%d") + ":" + (intervals.seconds%60).format("%02d");
         var detail=(intervals.paused ? "PAUSED " : "") + elapsed;
         if (!autoMode && !compact) { detail+=" / " + intervals.validPower.format("%d") + " PWR samples"; }

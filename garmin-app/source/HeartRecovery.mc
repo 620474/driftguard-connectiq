@@ -55,6 +55,11 @@ class HeartRecovery {
         }
         elapsed=delay; collecting=true; reason="COLLECTING";
     }
+    function inlineText() as String {
+        if (delta!=null) { return "R60" + delta.format("%+.0f"); }
+        if (collecting) { return "R" + elapsed.format("%d") + "/60"; }
+        return "R--";
+    }
     function compactText() as String {
         if (delta!=null) { return "HRR60 " + delta.format("%+.0f"); }
         if (collecting) { return "HRR " + elapsed.format("%d") + "/60"; }
