@@ -8,6 +8,18 @@ import Toybox.WatchUi;
 class DriftGuardView extends WatchUi.DataField {
     private const POWER_AVERAGE_SECONDS = 3;
     private const SCREEN_STORAGE_KEY = "screen";
+    // Shared full-page anchors keep both screens still when toggled.
+    private const FULL_HEADER_Y = 0.05;
+    private const FULL_HERO_Y = 0.12;
+    private const FULL_STATUS_Y = 0.205;
+    private const FULL_SUMMARY_LABEL_Y = 0.255;
+    private const FULL_SUMMARY_VALUE_Y = 0.30;
+    private const FULL_CHART_LABEL_Y = 0.395;
+    private const FULL_CHART_TOP = 0.435;
+    private const FULL_CHART_BOTTOM = 0.685;
+    private const FULL_RULE_Y = 0.705;
+    private const FULL_POWER_Y = 0.735;
+    private const FULL_HR_Y = 0.845;
     var intervals as IntervalSession;
     var recovery as HeartRecovery;
     var intervalHistory as IntervalHistory;
@@ -194,35 +206,38 @@ class DriftGuardView extends WatchUi.DataField {
         var center = width / 2;
         var margin = width / 12;
 
-        drawTabs(dc, center, height * 0.05);
-        drawHero(dc, center, height * 0.165, height * 0.295, Graphics.FONT_NUMBER_THAI_HOT,
+        drawTabs(dc, center, height * FULL_HEADER_Y);
+        drawHero(dc, center, height * (height>=700 ? FULL_HERO_Y : 0.165), height * (height>=700 ? FULL_STATUS_Y : 0.295),
+            height>=700 ? Graphics.FONT_NUMBER_HOT : Graphics.FONT_NUMBER_THAI_HOT,
             Graphics.FONT_LARGE, width - 2 * margin);
 
         var left = width / 4;
         var right = width * 3 / 4;
         var other = otherMetric();
-        drawLabel(dc, left, height * 0.39, metricName(other), Graphics.TEXT_JUSTIFY_CENTER);
-        drawLabel(dc, right, height * 0.39, "STEADY TIME", Graphics.TEXT_JUSTIFY_CENTER);
+        dc.setColor(mMuted, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(left, height * (height>=700 ? FULL_SUMMARY_LABEL_Y : 0.39),
+            height>=700 ? Graphics.FONT_SMALL : Graphics.FONT_XTINY, metricName(other),
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(right, height * (height>=700 ? FULL_SUMMARY_LABEL_Y : 0.39),
+            height>=700 ? Graphics.FONT_SMALL : Graphics.FONT_XTINY, "STEADY TIME",
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         var summaryAlign = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         dc.setColor(stateColor(other), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(left, height * 0.425, Graphics.FONT_MEDIUM, summaryText(other), summaryAlign);
+        dc.drawText(left, height * (height>=700 ? FULL_SUMMARY_VALUE_Y : 0.425), Graphics.FONT_MEDIUM, summaryText(other), summaryAlign);
         dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(right, height * 0.425, Graphics.FONT_MEDIUM,
+        dc.drawText(right, height * (height>=700 ? FULL_SUMMARY_VALUE_Y : 0.425), Graphics.FONT_MEDIUM,
             durationText(driftEngine.getSteadySeconds()), summaryAlign);
 
-        drawLabel(dc, margin, height * 0.49, "PW:HR · 1 MIN", Graphics.TEXT_JUSTIFY_LEFT);
+        dc.setColor(mMuted, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(margin, height * (height>=700 ? FULL_CHART_LABEL_Y : 0.49),
+            height>=700 ? Graphics.FONT_SMALL : Graphics.FONT_XTINY, "PW:HR · 1 MIN",
+            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(width - margin, height * 0.49, Graphics.FONT_SMALL, ratioText,
+        dc.drawText(width - margin, height * (height>=700 ? FULL_CHART_LABEL_Y : 0.49), Graphics.FONT_SMALL, ratioText,
             Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
-        var chartTop = (height * 0.52).toNumber();
-        drawTrend(dc, margin, chartTop, width - 2 * margin, (height * 0.645).toNumber() - chartTop);
-        drawRule(dc, margin, width - margin, height * 0.67);
-
-        var gaugeWidth = width - 2 * margin;
-        drawZoneGauge(dc, margin, (height * 0.705).toNumber(), gaugeWidth, "POWER 3S", powerText,
-            "W", power3s, powerZones);
-        drawZoneGauge(dc, margin, (height * 0.845).toNumber(), gaugeWidth, "HEART RATE",
-            heartRateText, "BPM", heartRate, heartRateZones);
+        var chartTop = (height * (height>=700 ? FULL_CHART_TOP : 0.52)).toNumber();
+        drawTrend(dc, margin, chartTop, width - 2 * margin, (height * (height>=700 ? FULL_CHART_BOTTOM : 0.645)).toNumber() - chartTop);
+        drawFullGauges(dc);
     }
 
     // Half-page style field: selected metric large, the other metric and steady time below.
@@ -313,7 +328,7 @@ class DriftGuardView extends WatchUi.DataField {
         drawIntervalHeader(dc);
         drawIntervalSummary(dc);
         drawIntervalCharts(dc);
-        drawIntervalGauges(dc);
+        drawFullGauges(dc);
     }
     private function drawIntervalHeader(dc as Graphics.Dc) as Void {
         var w=dc.getWidth(); var h=dc.getHeight(); var x=w/2; var margin=w/12;
@@ -321,27 +336,27 @@ class DriftGuardView extends WatchUi.DataField {
         var align=Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         var autoMode=intervals.source.equals("AUTO");
         var waiting=autoMode ? !intervals.automatic.active : intervals.sequence==0;
-        drawLabel(dc,x,h*0.05,"INTERVALS / " + intervals.source,Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc,x,h*FULL_HEADER_Y,"INTERVALS / " + intervals.source,Graphics.TEXT_JUSTIFY_CENTER);
         var mean=intervals.meanPower();
         if (!waiting && mean!=null && !intervals.paused) {
             dc.setColor(mForeground,Graphics.COLOR_TRANSPARENT);
-            dc.drawText(x,h*(large ? 0.12 : 0.18),Graphics.FONT_NUMBER_HOT,mean.format("%.0f"),align);
+            dc.drawText(x,h*(large ? FULL_HERO_Y : 0.18),Graphics.FONT_NUMBER_HOT,mean.format("%.0f"),align);
             drawLabel(dc,x,h*(large ? 0.17 : 0.255),"AVG POWER / W",Graphics.TEXT_JUSTIFY_CENTER);
             var caption=intervalDurationText(intervals.seconds);
             if (autoMode && intervals.seconds<10) { caption="CONFIRMING / " + caption; }
-            drawPill(dc,x,h*(large ? 0.205 : 0.315),caption,mMuted);
+            drawPill(dc,x,h*(large ? FULL_STATUS_Y : 0.315),caption,mMuted);
         } else {
             var status=intervals.paused ? "PAUSED" : "WAITING";
             if (autoMode && !intervals.paused && intervals.automatic.noPower) { status="NO POWER"; }
             else if (autoMode && !intervals.paused && intervals.automatic.historyCount<60) { status="COLLECTING"; }
             dc.setColor(mForeground,Graphics.COLOR_TRANSPARENT);
-            dc.drawText(x,h*(large ? 0.12 : 0.195),Graphics.FONT_LARGE,status,align);
+            dc.drawText(x,h*(large ? FULL_HERO_Y : 0.195),Graphics.FONT_LARGE,status,align);
             var caption="RIDE TO DETECT EFFORTS";
             if (autoMode && !intervals.paused && !intervals.automatic.noPower && intervals.automatic.historyCount<60) {
                 drawProgress(dc,margin,h*(large ? 0.165 : 0.30),w-2*margin,10,intervals.automatic.historyCount,60);
                 caption="BASELINE " + intervals.automatic.historyCount.format("%d") + " / 60 S";
             }
-            drawLabel(dc,x,h*(large ? 0.205 : 0.34),caption,Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc,x,h*(large ? FULL_STATUS_Y : 0.34),caption,Graphics.TEXT_JUSTIFY_CENTER);
         }
     }
     private function drawIntervalSummary(dc as Graphics.Dc) as Void {
@@ -351,8 +366,8 @@ class DriftGuardView extends WatchUi.DataField {
         var labelFont=large ? Graphics.FONT_SMALL : Graphics.FONT_XTINY;
         var valueFont=large ? Graphics.FONT_MEDIUM : Graphics.FONT_SMALL;
         dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
-        var labelsY=h*(large ? 0.255 : 0.39);
-        var valuesY=h*(large ? 0.30 : 0.425);
+        var labelsY=h*(large ? FULL_SUMMARY_LABEL_Y : 0.39);
+        var valuesY=h*(large ? FULL_SUMMARY_VALUE_Y : 0.425);
         dc.drawText(w/4,labelsY,labelFont,"LAST EFFORT",align);
         dc.drawText(w*3/4,labelsY,labelFont,"HRR60",align);
         var previous=intervals.lastMean;
@@ -375,18 +390,18 @@ class DriftGuardView extends WatchUi.DataField {
         var large=h>=700;
         var labelFont=large ? Graphics.FONT_SMALL : Graphics.FONT_XTINY;
         dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
-        dc.drawText(margin,h*(large ? 0.395 : 0.465),labelFont,"POWER (W) / 3 MIN",Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
-        drawIntervalPlot(dc,margin,(h*(large ? 0.435 : 0.485)).toNumber(),w-2*margin,(h*(large ? 0.09 : 0.07)).toNumber(),false);
+        dc.drawText(margin,h*(large ? FULL_CHART_LABEL_Y : 0.465),labelFont,"POWER (W) / 3 MIN",Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawIntervalPlot(dc,margin,(h*(large ? FULL_CHART_TOP : 0.485)).toNumber(),w-2*margin,(h*(large ? 0.09 : 0.07)).toNumber(),false);
         dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
         dc.drawText(margin,h*(large ? 0.565 : 0.575),labelFont,"HR (BPM) / 3 MIN",Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         drawIntervalPlot(dc,margin,(h*(large ? 0.605 : 0.595)).toNumber(),w-2*margin,(h*(large ? 0.08 : 0.07)).toNumber(),true);
     }
-    private function drawIntervalGauges(dc as Graphics.Dc) as Void {
+    private function drawFullGauges(dc as Graphics.Dc) as Void {
         var w=dc.getWidth(); var h=dc.getHeight(); var margin=w/12;
         var large=h>=700;
-        drawRule(dc,margin,w-margin,h*(large ? 0.705 : 0.68));
-        drawZoneGauge(dc,margin,(h*(large ? 0.735 : 0.705)).toNumber(),w-2*margin,"POWER 3S",powerText,"W",power3s,powerZones);
-        drawZoneGauge(dc,margin,(h*0.845).toNumber(),w-2*margin,"HEART RATE",heartRateText,"BPM",heartRate,heartRateZones);
+        drawRule(dc,margin,w-margin,h*(large ? FULL_RULE_Y : 0.68));
+        drawZoneGauge(dc,margin,(h*(large ? FULL_POWER_Y : 0.705)).toNumber(),w-2*margin,"POWER 3S",powerText,"W",power3s,powerZones);
+        drawZoneGauge(dc,margin,(h*FULL_HR_Y).toNumber(),w-2*margin,"HEART RATE",heartRateText,"BPM",heartRate,heartRateZones);
     }
 
     private function drawIntervalPlot(dc as Graphics.Dc,x as Number,y as Number,w as Number,h as Number,heart as Boolean) as Void {
@@ -472,11 +487,11 @@ class DriftGuardView extends WatchUi.DataField {
                 "% · MAX ±" + driftEngine.getMaxPowerChangePercent().format("%.0f") + "%";
         }
         var barHeight = 10;
-        var barY = statusY - barHeight;
+        var barY = statusY - (dc.getHeight()>=700 ? 30 : barHeight);
         if (total > 0) {
             drawProgress(dc, x - barWidth / 2, barY, barWidth, barHeight, done, total);
         }
-        drawLabel(dc, x, barY + barHeight * 3, caption, Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc, x, (dc.getHeight()>=700 ? statusY : barY + barHeight * 3), caption, Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // Number font for the digits and a smaller "%" sharing their baseline.

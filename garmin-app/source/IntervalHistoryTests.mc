@@ -18,12 +18,15 @@ function intervalsFullRenderingSmoke(logger as Test.Logger) as Boolean {
     var bmp=ref.get() as Graphics.BufferedBitmap;
     var field=new DriftGuardView(false);field.onTimerReset();field.intervalScreen=true;
     field.onUpdate(bmp.getDc());
+    field.intervalScreen=false;field.onUpdate(bmp.getDc());field.intervalScreen=true;
     var info=new Activity.Info();info.timerState=Activity.TIMER_STATE_ON;info.currentPower=100;info.currentHeartRate=140;
     for (var i=0;i<60;i+=1) { field.compute(info); }
     info.currentPower=300;
     for (var j=0;j<20;j+=1) { field.compute(info); }
     field.onUpdate(bmp.getDc());
+    field.intervalScreen=false;field.onUpdate(bmp.getDc());field.intervalScreen=true;
     info.currentPower=null;field.compute(info);field.onUpdate(bmp.getDc());
+    field.intervalScreen=false;field.onUpdate(bmp.getDc());
     field.onTimerReset();Test.assertEqual(field.intervalHistory.size,0);
     return true;
 }

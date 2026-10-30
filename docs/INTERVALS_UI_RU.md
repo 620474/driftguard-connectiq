@@ -33,3 +33,10 @@ HEART RATE, что в DRIFT. Используются общая палитра,
 рамкой оставлено 32 px (координата центра подписи → верх рамки). Первый график
 72 px, второй 64 px; между первой рамкой и центром следующей подписи 32 px.
 Нижний блок мощности сдвинут на 24 px вниз, чтобы разделитель не прижимался к рамке.
+
+Shared full-page grid (height >=700): heading 5%, hero 12%, status 20.5%,
+summary labels 25.5%, values 30%, chart title 39.5%, plot envelope 43.5-68.5%,
+separator 70.5%, power gauge 73.5%, HR gauge 84.5%. DRIFT and INTERVALS
+use the same anchors, hero number font and shared gauge renderer. INTERVALS
+keeps its extra duration row and two plots inside the common chart envelope.
+The rendering smoke now switches to DRIFT in waiting/active/dropout scenarios.

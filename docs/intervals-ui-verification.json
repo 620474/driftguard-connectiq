@@ -2,7 +2,7 @@
   "production_simulator": 38,
   "calibration_simulator": 41,
   "builds": "production/calibration normal/test, strict level 3, SDK 9.3.0 edge1050",
-  "render_test": "480x800 Graphics.BufferedBitmap: waiting/active/dropout; PASS",
+  "render_test": "480x800 Graphics.BufferedBitmap: both screens toggled during waiting/active/dropout; PASS",
   "history_test": "180 slots, FIFO rollover, zero watts, independent HR gaps, pause and reset; PASS",
   "analysis_changed": false,
   "fit_schema_changed": false,
@@ -10,5 +10,6 @@
   "physical_edge_test": false,
   "legibility": "Full field: larger summary/axis/placeholder fonts, split last power/time, 72/76 px plots; small render frames avoid stack overflow",
   "duration_regression": "30s=0:30; 90s=1:30; 5400s=1:30:00; DRIFT H:MM unchanged",
-  "spacing": "Full INTERVALS: hero/summary raised; chart label centers 32px above frames; 72/64px plots; second frame to rule 16px; larger fonts retained. DRIFT hero raised 24px."
+  "spacing": "Full INTERVALS: hero/summary raised; chart label centers 32px above frames; 72/64px plots; second frame to rule 16px; larger fonts retained. DRIFT hero raised 24px.",
+  "shared_layout": "DRIFT/INTERVALS full-page shared constants: header, hero, status, summary, chart envelope, rule and gauges; matched hero/summary/chart heading fonts"
 }

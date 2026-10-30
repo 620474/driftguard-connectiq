@@ -1,3 +1,12 @@
+# Shared screen alignment — 2026-10-31
+
+Owner requests stable positions when toggling DRIFT and INTERVALS. Use shared
+full-page anchors and fonts for heading, hero, status, summary, chart envelope,
+separator and sensor gauges. Keep two INTERVALS plots and all analysis unchanged.
+Verify both screens in rendering smoke, build/test, push and release.
+
+---
+
 # Screen spacing — 2026-10-31
 
 Owner requested less whitespace below screen titles and more separation around
