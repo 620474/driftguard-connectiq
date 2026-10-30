@@ -1,3 +1,12 @@
+# Screen spacing — 2026-10-31
+
+Owner requested less whitespace below screen titles and more separation around
+INTERVALS chart frames. Preserve headings, larger fonts and all analysis. Move
+hero/summary up, add title-to-frame gaps, keep frames separated from lower gauges.
+Build, run existing simulator rendering smoke/suites, publish and open production.
+
+---
+
 # INTERVALS legibility — 2026-10-31
 
 Owner marked LAST EFFORT, HRR60 and both chart areas as too small in screenshots.
