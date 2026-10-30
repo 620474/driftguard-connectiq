@@ -3,6 +3,11 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -11,20 +16,41 @@ permissions:
 
 jobs:
   release:
-    name: Create semantic release
-    runs-on: ubuntu-latest
+    name: Build Edge 1050 and publish release
+    runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Create GitHub release
+      - name: Cache Garmin SDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.tool_cache }}/garmin-sdk-9.2.0
+          key: garmin-windows-sdk-9.2.0-92a1605b2
+
+      - name: Build signed application
+        shell: pwsh
+        env:
+          GARMIN_SIGNING_KEY_BASE64: ${{ secrets.GARMIN_SIGNING_KEY_BASE64 }}
+          GARMIN_EDGE1050_PROFILE_1: ${{ secrets.GARMIN_EDGE1050_PROFILE_1 }}
+          GARMIN_EDGE1050_PROFILE_2: ${{ secrets.GARMIN_EDGE1050_PROFILE_2 }}
+        run: ./garmin-app/ci-release.ps1
+
+      - name: Create GitHub release with application download
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx --yes semantic-release@24

@@ -1,3 +1,12 @@
+# Release distribution — 2026-10-31
+
+Owner requested ready-to-install PRG downloads in GitHub releases. Build signed
+production Edge 1050 before semantic-release, publish PRG and checksum assets.
+Existing signing identity and minimal compiler profile use encrypted Actions
+secrets, never Git or release assets. Verify a real GitHub Actions run.
+
+---
+
 # Live AUTO на Edge 1050 — 2026-10-31
 
 По новому запросу владельца автоматический режим включён в приложение по умолчанию.

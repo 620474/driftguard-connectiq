@@ -1,3 +1,17 @@
+# Скачать DriftGuard для Edge 1050
+
+**[Скачать последнюю версию DriftGuard.prg](https://github.com/620474/driftguard-connectiq/releases/latest/download/DriftGuard.prg)**
+
+Скачайте файл и скопируйте его в `GARMIN/APPS` на подключённом Edge 1050.
+Безопасно отключите Garmin и выберите поле DriftGuard в профиле активности.
+
+[Все версии и описание изменений](https://github.com/620474/driftguard-connectiq/releases).
+Релизы содержат готовую обычную сборку. Новые `fix:`/`feat:` в main автоматически
+собирают подписанный файл и прикладывают его к новой версии. При ошибке сборки
+релиз не публикуется. Изменение только документации новой версии не создаёт.
+
+---
+
 # DriftGuard Connect IQ
 
 Private development repository for **DriftGuard**, a Garmin Connect IQ Data Field for endurance cyclists.
