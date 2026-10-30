@@ -1,0 +1,42 @@
+{
+  "base_commit": "d54af7a5f38dd96ac1958a490a0313c0757312a3",
+  "date": "2026-10-31",
+  "scope": "INTERVALS explicit segment foundation",
+  "python_tests": {
+    "passed": 55,
+    "failed": 0,
+    "errors": 0
+  },
+  "production_simulator": {
+    "passed": 24,
+    "failed": 0,
+    "errors": 0
+  },
+  "calibration_simulator": {
+    "passed": 27,
+    "failed": 0,
+    "errors": 0
+  },
+  "builds": {
+    "production": "passed",
+    "production_test": "passed",
+    "calibration": "passed",
+    "calibration_test": "passed",
+    "sdk": "9.2.0",
+    "target": "edge1050",
+    "strict_level": 3
+  },
+  "unchanged": [
+    "DriftEngine.mc",
+    "driftlab/oracle.py",
+    "FIT recorders and schemas"
+  ],
+  "limitations": [
+    "Physical Edge not tested",
+    "Six-month original FIT analysis not performed",
+    "Visual screenshot unavailable: simulator did not expose a targetable window to computer-use",
+    "Simulator runner exits 1 despite passing summary",
+    "Historic FIT laps do not prove live workout callbacks",
+    "Work/recovery and HR metrics deferred"
+  ]
+}

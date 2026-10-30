@@ -2,7 +2,7 @@ import Toybox.Lang;
 import Toybox.WatchUi;
 
 // Edge touch devices deliver onTap to data fields; a tap anywhere on the field
-// switches the main metric. Nothing depends on it: both metrics stay visible.
+// switches DRIFT / INTERVALS. Both drift metrics stay on the DRIFT screen.
 class DriftGuardDelegate extends WatchUi.InputDelegate {
     private var mView as DriftGuardView;
 
@@ -12,7 +12,7 @@ class DriftGuardDelegate extends WatchUi.InputDelegate {
     }
 
     function onTap(clickEvent as WatchUi.ClickEvent) as Boolean {
-        mView.toggleMetric();
+        mView.toggleScreen();
         return true;
     }
 }

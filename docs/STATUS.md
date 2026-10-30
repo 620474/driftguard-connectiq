@@ -1,3 +1,12 @@
+# INTERVALS stage 1 — 2026-10-31
+
+Implemented: DRIFT/INTERVALS screen switch, separate explicit-boundary segment
+accumulator, manual/workout sources, independent Python model and regression tests.
+DriftEngine, mathematical drift oracle and FIT schemas remain unchanged.
+See INTERVALS_RU.md. Physical Edge and six-month FIT validation remain pending.
+
+---
+
 # Project Status
 
 Last updated: 2026-09-25

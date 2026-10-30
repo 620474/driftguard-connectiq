@@ -380,13 +380,13 @@ function driftResetsForNextActivity(logger as Test.Logger) as Boolean {
 }
 
 (:test)
-function tapTogglesMainMetric(logger as Test.Logger) as Boolean {
+function tapTogglesScreens(logger as Test.Logger) as Boolean {
     var field = new DriftGuardView(false);
-    var start = field.metric;
-    field.toggleMetric();
-    Test.assert(field.metric != start);
-    field.toggleMetric();
-    Test.assertEqual(field.metric, start);
+    var start = field.intervalScreen;
+    field.toggleScreen();
+    Test.assert(field.intervalScreen != start);
+    field.toggleScreen();
+    Test.assertEqual(field.intervalScreen, start);
     return true;
 }
 

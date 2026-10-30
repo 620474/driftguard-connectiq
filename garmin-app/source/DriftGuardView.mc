@@ -7,7 +7,9 @@ import Toybox.WatchUi;
 
 class DriftGuardView extends WatchUi.DataField {
     private const POWER_AVERAGE_SECONDS = 3;
-    private const METRIC_STORAGE_KEY = "metric";
+    private const SCREEN_STORAGE_KEY = "screen";
+    var intervals as IntervalEngine;
+    var intervalScreen as Boolean = false;
     // Garmin's usual zone colors: gray, blue, green, orange, red, then yellow/purple
     // for 7-zone power models (inserted so the order stays cool to hot).
     private const ZONE_COLORS_5 = [0x8C8C8C, 0x2F7FE0, 0x2EA84A, 0xF08A00, 0xE0282E] as Array<Number>;
@@ -20,7 +22,7 @@ class DriftGuardView extends WatchUi.DataField {
     var ratioText as String = "--";
     var driftEngine as DriftEngine;
     var recorder as DriftRecorder;
-    // The metric the rider selected; tapping the field switches it.
+    // RIDE is preferred on DRIFT; fallback can show LAST 60 large.
     var metric as DriftMetric = METRIC_RIDE;
     // The metric actually drawn large this update (see displayMetric).
     private var mShown as DriftMetric = METRIC_RIDE;
@@ -50,7 +52,8 @@ class DriftGuardView extends WatchUi.DataField {
         driftEngine = new DriftEngine(null);
         recorder = new DriftRecorder(recordFit ? self : null);
         loadZones();
-        loadMetric();
+        intervals = new IntervalEngine();
+        loadScreen();
     }
 
     function compute(info as Activity.Info) as Void {
@@ -86,6 +89,7 @@ class DriftGuardView extends WatchUi.DataField {
 
         var isTimerRunning = info.timerState == Activity.TIMER_STATE_ON;
         driftEngine.addSample(power, currentHeartRate, isTimerRunning);
+        intervals.addSample(power, isTimerRunning);
         recorder.onSecond(driftEngine, info.currentCadence, isTimerRunning);
         // Instant power / HR is noise (HR lags power); show the last full minute instead.
         var ratio = driftEngine.getHistory().getLatest();
@@ -95,6 +99,7 @@ class DriftGuardView extends WatchUi.DataField {
     // Called when the activity is saved or discarded: the next ride starts clean.
     function onTimerReset() as Void {
         driftEngine.reset();
+        intervals.reset();
         recorder.reset();
         mPowerWindowCount = 0;
         ratioText = "--";
@@ -102,13 +107,21 @@ class DriftGuardView extends WatchUi.DataField {
         loadZones();
     }
 
-    function toggleMetric() as Void {
-        metric = metric == METRIC_RIDE ? METRIC_LAST_60 : METRIC_RIDE;
+    function toggleScreen() as Void {
+        intervalScreen = !intervalScreen;
         try {
-            Application.Storage.setValue(METRIC_STORAGE_KEY, metric as Number);
-        } catch (e) {
-            // Remembering the choice is a convenience; the toggle still works.
+            Application.Storage.setValue(SCREEN_STORAGE_KEY, intervalScreen ? 1 : 0);
+        } catch (e) {}
+    }
+
+    function onWorkoutStarted() as Void { intervals.startWorkout(); }
+    function onWorkoutStepComplete() as Void { intervals.boundary(true); }
+    function onTimerLap2(trigger as WatchUi.DataField.LapInfoType) as Boolean {
+        if (trigger[:lapTrigger] == WatchUi.DataField.LAP_TRIGGER_MANUAL) {
+            intervals.boundary(false);
         }
+        // Consume all lap notifications so the legacy callback cannot duplicate one.
+        return true;
     }
 
     function driftTextFor(forMetric as DriftMetric) as String {
@@ -135,6 +148,7 @@ class DriftGuardView extends WatchUi.DataField {
         dc.setColor(mForeground, mBackground);
         dc.clear();
 
+        if (intervalScreen) { drawIntervals(dc); return; }
         var height = dc.getHeight();
         if (height >= 500) {
             drawFull(dc);
@@ -203,43 +217,36 @@ class DriftGuardView extends WatchUi.DataField {
 
     // Small field: value (or progress) and the metric with a colored state word.
     private function drawSmall(dc as Graphics.Dc) as Void {
-        var center = dc.getWidth() / 2;
-        var height = dc.getHeight();
-        var align = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
-        dc.setColor(mForeground, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(center, height * 0.38, Graphics.FONT_MEDIUM, summaryText(mShown), align);
-        dc.setColor(stateColor(mShown), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(center, height * 0.78, Graphics.FONT_XTINY,
-            metricName(mShown) + " · " + stateTitle(mShown), align);
+        var x = dc.getWidth() / 2;
+        var h = dc.getHeight();
+        drawLabel(dc, x, h * 0.30, "RIDE " + summaryText(METRIC_RIDE), Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc, x, h * 0.72, "LAST 60 " + summaryText(METRIC_LAST_60), Graphics.TEXT_JUSTIFY_CENTER);
     }
 
-    // Two pills; the metric shown large is filled. A selected metric that had to
-    // give way (see displayMetric) keeps an orange outline.
-    private function drawTabs(dc as Graphics.Dc, x as Number, y as Float) as Void {
-        var font = Graphics.FONT_XTINY;
-        var textHeight = dc.getFontHeight(font);
-        var tabHeight = textHeight + 8;
-        var tabWidth = dc.getTextWidthInPixels("LAST 60", font) + textHeight * 2;
-        var gap = 12;
-        var metrics = [METRIC_RIDE, METRIC_LAST_60] as Array<DriftMetric>;
-        for (var i = 0; i < metrics.size(); i += 1) {
-            var tabX = i == 0 ? x - gap / 2 - tabWidth : x + gap / 2;
-            var selected = metrics[i] == mShown;
-            var gaveWay = metrics[i] == metric && metric != mShown;
-            dc.setColor(selected ? mForeground : (gaveWay ? Graphics.COLOR_ORANGE : mTrack),
-                Graphics.COLOR_TRANSPARENT);
-            if (selected) {
-                dc.fillRoundedRectangle(tabX, y - tabHeight / 2, tabWidth, tabHeight, tabHeight / 2);
-                dc.setColor(mBackground, Graphics.COLOR_TRANSPARENT);
-            } else {
-                dc.setPenWidth(2);
-                dc.drawRoundedRectangle(tabX, y - tabHeight / 2, tabWidth, tabHeight, tabHeight / 2);
-                dc.setPenWidth(1);
-                dc.setColor(mMuted, Graphics.COLOR_TRANSPARENT);
-            }
-            dc.drawText(tabX + tabWidth / 2, y, font, metricName(metrics[i]),
-                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    private function drawIntervals(dc as Graphics.Dc) as Void {
+        var x = dc.getWidth() / 2;
+        var h = dc.getHeight();
+        var align = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var compact = h < 150;
+        var title = intervals.sequence == 0 ? "INTERVALS" : "SEG " + intervals.sequence.format("%d");
+        drawLabel(dc, x, h * 0.13, title, Graphics.TEXT_JUSTIFY_CENTER);
+        if (intervals.sequence == 0) {
+            drawLabel(dc, x, h * 0.45, "WAITING", Graphics.TEXT_JUSTIFY_CENTER);
+            drawLabel(dc, x, h * 0.78, compact ? "PRESS LAP" : "START WORKOUT / LAP", Graphics.TEXT_JUSTIFY_CENTER);
+            return;
         }
+        var mean = intervals.meanPower();
+        var text = mean == null ? "-- W" : mean.format("%.0f") + " W";
+        dc.drawText(x, h * 0.40, compact ? Graphics.FONT_MEDIUM : Graphics.FONT_NUMBER_MEDIUM, text, align);
+        var elapsed = (intervals.seconds / 60).format("%d") + ":" + (intervals.seconds % 60).format("%02d");
+        drawLabel(dc, x, h * 0.65, (intervals.paused ? "PAUSED " : "") + elapsed +
+            "  " + intervals.validPower.format("%d") + "/" + intervals.seconds.format("%d") + " PWR", Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc, x, h * 0.86, intervals.source + (intervals.interrupted ? " / INTERRUPTED" : ""), Graphics.TEXT_JUSTIFY_CENTER);
+    }
+
+    // Screen title identifies which of the two drift results is drawn large.
+    private function drawTabs(dc as Graphics.Dc, x as Number, y as Float) as Void {
+        drawLabel(dc, x, y, "DRIFT / " + metricName(mShown), Graphics.TEXT_JUSTIFY_CENTER);
     }
 
     // The main block: the drift value with a status pill once valid, otherwise the
@@ -573,15 +580,12 @@ class DriftGuardView extends WatchUi.DataField {
         return band == BAND_NEGATIVE ? mMuted : mGreen;
     }
 
-    private function loadMetric() as Void {
+    private function loadScreen() as Void {
+        // Old metric storage is deliberately ignored: migrate to DRIFT with both values.
         try {
-            var stored = Application.Storage.getValue(METRIC_STORAGE_KEY);
-            if (stored instanceof Number && (stored as Number) == METRIC_LAST_60) {
-                metric = METRIC_LAST_60;
-            }
-        } catch (e) {
-            // Storage can be unavailable; RIDE is the default.
-        }
+            var stored = Application.Storage.getValue(SCREEN_STORAGE_KEY);
+            intervalScreen = stored instanceof Number && stored == 1;
+        } catch (e) {}
     }
 
     private function loadZones() as Void {

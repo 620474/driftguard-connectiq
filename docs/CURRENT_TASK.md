@@ -1,3 +1,26 @@
+# INTERVALS — stage 1 (2026-10-31)
+
+Owner authorized implementation and push to main in the current chat.
+
+- Tap switches DRIFT / INTERVALS; both RIDE and LAST 60 remain on DRIFT.
+- Separate constant-memory segment accumulator, independent of visible screen.
+- Structured workout callbacks and manual laps only; Auto Lap ignored.
+- No work/recovery inference: display SEG, source, average power, running duration,
+  valid power count and interruption flag. First manual lap starts segment 1.
+- Missing power is excluded, zero is included. Pauses freeze duration and mark interruption.
+- New activity reset clears analysis, keeps screen choice. Old metric storage defaults to DRIFT.
+- Keep DriftEngine, Python drift oracle and all FIT recorder contracts unchanged.
+- Independent Python segment implementation and matching deterministic test streams.
+- Build production/calibration and tests with strict level 3; run both simulator suites
+  and Python suite. Document physical-device and historic FIT limitations.
+- HR, HRR, rep matching, fatigue scores and automatic power segmentation are deferred.
+
+See INTERVALS_RU.md for exact boundary and offline validation contract.
+
+---
+
+## Historical scope (superseded by the stage above)
+
 # Milestone 4 — Honest numbers and calibration recording
 
 Follows the two research reports (Claude, ChatGPT) on the Milestone 3 model.

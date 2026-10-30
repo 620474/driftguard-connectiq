@@ -1,3 +1,14 @@
+# INTERVALS stage 1 — 2026-10-31
+
+Tap now switches **DRIFT / INTERVALS**, rather than RIDE / LAST 60. DRIFT keeps
+both values visible. INTERVALS shows explicit segments (workout steps or manual
+laps), running time, average power and valid sample count. API minimum is 5.2.2.
+No HR interpretation or automatic work/recovery classification is included.
+See [current usage and offline FIT limitations](../docs/INTERVALS_RU.md).
+Build/sideload instructions below still apply. The prior metric-tab UX is historical.
+
+---
+
 # DriftGuard — Milestone 4
 
 Edge 1050 Connect IQ Data Field: live aerobic decoupling (Pw:HR drift) for the
