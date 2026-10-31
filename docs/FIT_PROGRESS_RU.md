@@ -51,3 +51,7 @@ misassociate a later HRR update. AUTO recording now keys completions by detected
 manual/workout recording retains boundary sequence. Identical-duration successive
 completions remain distinct. Regression exercises real IntervalSession transitions.
 Existing FIT files are unchanged; their duplicate IDs cannot be treated as true reps.
+
+## AUTO candidate duration policy (experimental)
+
+Experimental AUTO stops a candidate at 240 running samples without emitting a completed repetition, specifically to reject persistent baseline shifts such as the ~31-minute false candidate found in a real ride. This is a conservative **short-surge-only** mode; valid long sustained efforts also do not become AUTO repetitions. For those use a structured workout or manual LAP. The original FIT was replayed with a separate Python translation of the state machine: 3 short effort candidates (~62s, ~58s, ~57s) remain, with the long one suppressed. This is not a Garmin SDK, simulator, or on-device result.
