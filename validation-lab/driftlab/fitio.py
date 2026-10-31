@@ -104,6 +104,10 @@ def extract_repetitions(messages):
                 errors.append(f'HRR without effort: {rep_id}')
             elif isinstance(hrr, (int, float)) and -300 <= hrr <= 300:
                 item['hrr60_bpm' if event == 2 else 'active_hrr60_bpm'] = hrr
+                if event == 3:
+                    strict = values.get('dg_rep_hrr')
+                    if isinstance(strict, (int, float)) and -300 <= strict <= 300:
+                        item['hrr60_bpm'] = strict
             else:
                 errors.append(f'invalid HRR: {rep_id}')
         else:
