@@ -20,6 +20,15 @@ class ProductionRecorder {
     private var mSessionPowerChangeField as FitContributor.Field? = null;
     private var mSessionCompatField as FitContributor.Field? = null;
 
+    // Session-only summaries avoid adding to the 32-byte RECORD developer field budget.
+    // These are the LAST completed effort / LAST valid recovery, not ride averages.
+    private var mLastEffortPowerField as FitContributor.Field? = null;
+    private var mLastEffortSecondsField as FitContributor.Field? = null;
+    private var mLastEffortSourceField as FitContributor.Field? = null;
+    private var mLastHrr60Field as FitContributor.Field? = null;
+    private var mLastEffortMarker as String = "";
+    private var mLastHrrMarker as String = "";
+
     private var mLastMinute as Number = 0;
     private var mCadenceSum as Number = 0;
     private var mCadenceSeconds as Number = 0;
@@ -58,6 +67,18 @@ class ProductionRecorder {
             mSessionCompatField = field.createField("dg_compat_drift", 9,
                 FitContributor.DATA_TYPE_FLOAT,
                 {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "%"});
+            mLastEffortPowerField = field.createField("dg_last_effort_w", 10,
+                FitContributor.DATA_TYPE_FLOAT,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "W"});
+            mLastEffortSecondsField = field.createField("dg_last_effort_s", 11,
+                FitContributor.DATA_TYPE_UINT16,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "s"});
+            mLastEffortSourceField = field.createField("dg_last_effort_src", 12,
+                FitContributor.DATA_TYPE_UINT8,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "mode"});
+            mLastHrr60Field = field.createField("dg_hrr60_last", 13,
+                FitContributor.DATA_TYPE_FLOAT,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "bpm"});
         } catch (e) {
             mEfficiencyField = null;
         }
@@ -72,6 +93,36 @@ class ProductionRecorder {
         mLastMinute = 0;
         resetCadence();
         lastCadence = 0;
+        mLastEffortMarker = "";
+        mLastHrrMarker = "";
+    }
+
+    // Last completed effort and last valid HRR60 are independent session snapshots.
+    // Source: 1 automatic, 2 manual lap, 3 structured workout.
+    function onIntervals(intervals as IntervalSession, recovery as HeartRecovery) as Void {
+        if (mLastEffortPowerField == null) { return; }
+        var mode = intervals.source.equals("AUTO") ? 1 :
+            (intervals.source.equals("MANUAL") ? 2 : 3);
+        var effort = intervals.lastMean;
+        var duration = intervals.lastSeconds;
+        if (effort != null && duration > 0) {
+            var marker = mode.format("%d") + ":" + intervals.sequence.format("%d") +
+                ":" + duration.format("%d");
+            if (!marker.equals(mLastEffortMarker)) {
+                mLastEffortMarker = marker;
+                (mLastEffortPowerField as FitContributor.Field).setData(effort);
+                (mLastEffortSecondsField as FitContributor.Field).setData(
+                    duration > 65535 ? 65535 : duration);
+                (mLastEffortSourceField as FitContributor.Field).setData(mode);
+            }
+        }
+        if (recovery.delta != null && recovery.reason.equals("READY")) {
+            var hrrMarker = mLastEffortMarker + ":" + recovery.delta.format("%.2f");
+            if (!hrrMarker.equals(mLastHrrMarker)) {
+                mLastHrrMarker = hrrMarker;
+                (mLastHrr60Field as FitContributor.Field).setData(recovery.delta);
+            }
+        }
     }
 
     // Called every second after the engine has taken the sample.
