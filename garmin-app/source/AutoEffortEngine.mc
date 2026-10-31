@@ -4,6 +4,7 @@ import Toybox.Lang;
 class AutoEffortEngine {
     var experimental as Boolean = false;
     private var pendingBase as Number = 0;
+    private var steadyPlateauSeconds as Number = 0;
     private var history as Array<Number>;
     private var sorted as Array<Number>;
     private var pending as Array<Number> = [0,0,0] as Array<Number>;
@@ -36,6 +37,7 @@ class AutoEffortEngine {
     }
     function reset() as Void {
         historyCount=0; next=0; pendingCount=0; gapCount=0; active=false;
+        steadyPlateauSeconds=0;
         sequence=0; seconds=0; powerSum=0.0f; lastSeconds=0; lastMean=null;
         lastPartial=false; noPower=true; tick=-1; startTick=0; endTick=0; detectedStart=0;
         lastStart=0; lastEnd=0; detectedEnd=0;
@@ -59,6 +61,7 @@ class AutoEffortEngine {
             lastStart=startTick; lastEnd=endTick; detectedEnd=tick;
         }
         active=false; seconds=0; powerSum=0.0f; pendingCount=0;
+        steadyPlateauSeconds=0;
     }
     function addSample(power as Number?, running as Boolean) as Void {
         if (experimental) { addAdaptive(power,running); return; }
@@ -119,7 +122,7 @@ class AutoEffortEngine {
                     powerSum-=pending[0]+pending[1];seconds-=2;endTick=tick-3;
                     close(false);
                 }
-                active=true;sequence+=1;seconds=3;
+                active=true;sequence+=1;seconds=3;steadyPlateauSeconds=0;
                 powerSum=pending[0].toFloat()+pending[1]+pending[2];pendingCount=0;
                 startTick=tick-2;endTick=tick;detectedStart=tick;
                 offBaselineTwice=pendingBase;gapCount=0;
@@ -136,6 +139,15 @@ class AutoEffortEngine {
             }
         }
         idle(value);
+        // AUTO is deliberately limited to short surges. A sustained transition
+        // to a new riding level must never become a bogus 30-minute repetition.
+        // At 240 s suppress the candidate without calling close(), so no
+        // completed-effort FIT event or HRR is produced.
+        // Longer prescribed intervals must use WORKOUT or manual LAP.
+        if (active && seconds>=240) {
+            active=false;seconds=0;powerSum=0.0f;pendingCount=0;
+            gapCount=0;steadyPlateauSeconds=0;
+        }
     }
     function meanPower() as Float? { return active ? powerSum/seconds : null; }
 }

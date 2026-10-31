@@ -94,16 +94,20 @@ def extract_repetitions(messages):
                 continue
             item = dict(id=rep_id, time=values.get('timestamp'), duration_s=duration,
                         power_w=power, source={1:'AUTO',2:'MANUAL',3:'WORKOUT'}[source],
-                        hrr60_bpm=None)
+                        hrr60_bpm=None, active_hrr60_bpm=None)
             reps.append(item)
             by_id[rep_id] = item
-        elif event == 2:
+        elif event in (2, 3):
             item = by_id.get(rep_id)
-            hrr = values.get('dg_rep_hrr')
+            hrr = values.get('dg_rep_hrr' if event == 2 else 'dg_rep_hrr_active')
             if item is None:
                 errors.append(f'HRR without effort: {rep_id}')
             elif isinstance(hrr, (int, float)) and -300 <= hrr <= 300:
-                item['hrr60_bpm'] = hrr
+                item['hrr60_bpm' if event == 2 else 'active_hrr60_bpm'] = hrr
+                if event == 3:
+                    strict = values.get('dg_rep_hrr')
+                    if isinstance(strict, (int, float)) and -300 <= strict <= 300:
+                        item['hrr60_bpm'] = strict
             else:
                 errors.append(f'invalid HRR: {rep_id}')
         else:

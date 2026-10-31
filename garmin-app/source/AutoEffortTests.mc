@@ -1252,3 +1252,34 @@ function liveAutoSourcePriority(logger as Test.Logger) as Boolean {
     Test.assertEqual(f.intervals.seconds,20);
     return true;
 }
+
+(:test)
+function adaptiveSteadyPlateauIsNotEffort(logger as Test.Logger) as Boolean {
+    var e=new AutoEffortEngine(); e.experimental=true;
+    for (var i=0;i<60;i+=1) { e.addSample(100,true); }
+    for (var j=0;j<600;j+=1) { e.addSample(200,true); }
+    Test.assertEqual(e.active,false);
+    Test.assertEqual(e.detectedEnd,0);
+    return true;
+}
+(:test)
+function adaptiveShortSurgeStillRecorded(logger as Test.Logger) as Boolean {
+    var e=new AutoEffortEngine(); e.experimental=true;
+    for (var i=0;i<60;i+=1) { e.addSample(100,true); }
+    for (var j=0;j<60;j+=1) { e.addSample(290,true); }
+    for (var k=0;k<6;k+=1) { e.addSample(100,true); }
+    Test.assertEqual(e.active,false);
+    Test.assertEqual(e.lastSeconds,60);
+    Test.assert(e.lastMean!=null);
+    return true;
+}
+
+(:test)
+function adaptiveLongUniformEffortIsSuppressed(logger as Test.Logger) as Boolean {
+    var e=new AutoEffortEngine(); e.experimental=true;
+    for (var i=0;i<60;i+=1) { e.addSample(100,true); }
+    for (var j=0;j<360;j+=1) { e.addSample(200,true); }
+    Test.assertEqual(e.active,false);
+    Test.assertEqual(e.detectedEnd,0);
+    return true;
+}
