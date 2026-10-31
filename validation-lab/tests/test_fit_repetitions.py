@@ -15,13 +15,14 @@ class TestFitRepetitions(unittest.TestCase):
     def test_multiple_efforts_and_hrr_update(self):
         messages = [
             record(1, 1), record(1, 1), record(1, 2, hrr=22),
-            record(1, 2, hrr=22), record(2, 1, power=280, source=3),
+            record(1, 2, hrr=22), record(1, 3, hrr=19), record(2, 1, power=280, source=3),
             record(3, 1, power=310, seconds=45, source=2)
         ]
         actual = extract_repetitions(messages)
         self.assertEqual(len(actual['repetitions']), 3)
         self.assertEqual([r['source'] for r in actual['repetitions']], ['AUTO','WORKOUT','MANUAL'])
         self.assertEqual(actual['repetitions'][0]['hrr60_bpm'], 22)
+        self.assertEqual(actual['repetitions'][0]['active_hrr60_bpm'], 19)
         self.assertIsNone(actual['repetitions'][1]['hrr60_bpm'])
         self.assertEqual(actual['issues'], [])
 
