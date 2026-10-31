@@ -1273,3 +1273,13 @@ function adaptiveShortSurgeStillRecorded(logger as Test.Logger) as Boolean {
     Test.assert(e.lastMean!=null);
     return true;
 }
+
+(:test)
+function adaptiveLongUniformEffortIsSuppressed(logger as Test.Logger) as Boolean {
+    var e=new AutoEffortEngine(); e.experimental=true;
+    for (var i=0;i<60;i+=1) { e.addSample(100,true); }
+    for (var j=0;j<360;j+=1) { e.addSample(200,true); }
+    Test.assertEqual(e.active,false);
+    Test.assertEqual(e.detectedEnd,0);
+    return true;
+}
