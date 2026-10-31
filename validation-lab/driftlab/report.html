@@ -26,9 +26,9 @@ else {
  summary.textContent='Сохранено повторений: '+reps.repetitions.length+'; замечаний: '+reps.issues.length;
  repBox.append(summary);
  const tab=document.createElement('table'),head=tab.insertRow();
- ['#','Время','Источник','Длительность, с','Мощность, Вт','HRR60, уд/мин'].forEach(v=>{let c=document.createElement('th');c.textContent=v;head.append(c)});
+ ['#','Время','Источник','Длительность, с','Мощность, Вт','HRR60, уд/мин','Активный HRR60, уд/мин'].forEach(v=>{let c=document.createElement('th');c.textContent=v;head.append(c)});
  reps.repetitions.forEach(item=>{let row=tab.insertRow();
- [item.id,item.time,item.source,item.duration_s,item.power_w,item.hrr60_bpm].forEach(v=>{let c=row.insertCell();c.textContent=v??'—'})});
+ [item.id,item.time,item.source,item.duration_s,item.power_w,item.hrr60_bpm,item.active_hrr60_bpm].forEach(v=>{let c=row.insertCell();c.textContent=v??'—'})});
  repBox.append(tab);
 }
 if(reps.issues.length){const warning=document.createElement('pre');warning.textContent=reps.issues.join('\n');repBox.append(warning)}
