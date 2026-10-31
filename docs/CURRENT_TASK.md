@@ -1,3 +1,12 @@
+# FIT duplicates and tempo surges — 2026-10-31
+
+Owner authorized fixes after activity 24921319846 review. Fix completion identity
+without changing FIT schema. Regression: next AUTO start preserves prior marker;
+next equal-duration completion changes it; manual boundaries remain distinct.
+Research local tempo surge boundaries offline before changing live thresholds.
+
+---
+
 # Shared screen alignment — 2026-10-31
 
 Owner requests stable positions when toggling DRIFT and INTERVALS. Use shared

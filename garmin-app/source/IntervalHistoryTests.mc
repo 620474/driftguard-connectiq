@@ -40,3 +40,24 @@ function intervalDurationsRetainSeconds(logger as Test.Logger) as Boolean {
     Test.assertEqual(view.durationText(5400),"1:30");
     return true;
 }
+
+(:test)
+function recorderCompletionIdentityIgnoresNextAutoStart(logger as Test.Logger) as Boolean {
+    var session=new IntervalSession(); var recorder=new ProductionRecorder(null);
+    for (var i=0;i<60;i+=1) { session.addSample(100,true); }
+    for (var j=0;j<20;j+=1) { session.addSample(300,true); }
+    for (var k=0;k<5;k+=1) { session.addSample(100,true); }
+    var completed=recorder.effortMarker(session);
+    for (var n=0;n<3;n+=1) { session.addSample(300,true); }
+    Test.assert(session.automatic.active);
+    Test.assertEqual(recorder.effortMarker(session),completed);
+    for (var a=0;a<17;a+=1) { session.addSample(300,true); }
+    for (var b=0;b<5;b+=1) { session.addSample(100,true); }
+    Test.assert(!recorder.effortMarker(session).equals(completed));
+    session.reset();session.boundary(false);
+    session.addSample(200,true);session.boundary(false);
+    var manual=recorder.effortMarker(session);
+    session.addSample(200,true);session.boundary(false);
+    Test.assert(!recorder.effortMarker(session).equals(manual));
+    return true;
+}

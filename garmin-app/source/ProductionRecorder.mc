@@ -128,6 +128,13 @@ class ProductionRecorder {
         mPendingHrrRep = 0;
     }
 
+    // AUTO sequence advances at START; detectedEnd changes only on completion.
+    // Keying held lastMean by sequence records the previous effort again at next start.
+    function effortMarker(intervals as IntervalSession) as String {
+        var identity=intervals.source.equals("AUTO") ? intervals.automatic.detectedEnd : intervals.sequence;
+        return intervals.source + ":" + identity.format("%d") + ":" + intervals.lastSeconds.format("%d");
+    }
+
     // Last completed effort and last valid HRR60 are independent session snapshots.
     // Source: 1 automatic, 2 manual lap, 3 structured workout.
     function onIntervals(intervals as IntervalSession, recovery as HeartRecovery) as Void {
@@ -137,8 +144,7 @@ class ProductionRecorder {
         var effort = intervals.lastMean;
         var duration = intervals.lastSeconds;
         if (effort != null && duration > 0) {
-            var marker = mode.format("%d") + ":" + intervals.sequence.format("%d") +
-                ":" + duration.format("%d");
+            var marker = effortMarker(intervals);
             if (!marker.equals(mLastEffortMarker)) {
                 mLastEffortMarker = marker;
                 (mLastEffortPowerField as FitContributor.Field).setData(effort);
@@ -146,7 +152,7 @@ class ProductionRecorder {
                     duration > 65535 ? 65535 : duration);
                 (mLastEffortSourceField as FitContributor.Field).setData(mode);
                 // A monotonically increasing ID permits reconstruction of every
-                // completed effort from held RECORD values (including Smart Recording).
+                // completed effort from held RECORD values when physically sampled.
                 // Wrap is explicit; very long activities should be flagged by decoder.
                 mRepCounter = mRepCounter >= 65534 ? 1 : mRepCounter + 1;
                 mPendingHrrRep = mRepCounter;

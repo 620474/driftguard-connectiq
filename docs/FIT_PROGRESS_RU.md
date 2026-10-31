@@ -42,3 +42,12 @@ A completed effort produces a held RECORD event that can be recovered after the 
 **Crucial limitation:** Garmin `Field.setData()` updates the *next* FIT value, not an append-only event log. With Smart Recording or pause/discard, a fast event change before the next physical FIT write may be lost. Consequently this scheme records all detected efforts **provided each completion event is physically sampled in a RECORD message**; the decoder reports detectable gaps, but cannot establish completeness of every ride. Independent physical FIT testing is required before claiming 100% retention. For guaranteed append-only per-repetition storage a Data Field-only design may need a different Garmin-supported persistence mechanism or a different app architecture.
 
 The HTML report now displays the reconstructed repetition table, source, duration, power and HRR60 for each ride; longitudinal chart still reports only DRIFT, not inferred interval fitness trends.
+
+## Completion identity fix (2026-10-31)
+
+AUTO sequence advances at effort start, while lastMean/lastSeconds still refer to
+its predecessor. This formerly duplicated that predecessor in RECORD and could
+misassociate a later HRR update. AUTO recording now keys completions by detectedEnd;
+manual/workout recording retains boundary sequence. Identical-duration successive
+completions remain distinct. Regression exercises real IntervalSession transitions.
+Existing FIT files are unchanged; their duplicate IDs cannot be treated as true reps.
