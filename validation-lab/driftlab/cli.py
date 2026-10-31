@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from dateutil.relativedelta import relativedelta
 from .archive import atomic,digest,sync_import
-from .fitio import read_fit
+from .fitio import read_fit, extract_repetitions
 from .experiments import compare,minute_diff
 
 
@@ -41,7 +41,8 @@ def analyze(root,suite=False,months=6):
         result=dict(id=key,signature=signature,start=None)
         try:
             samples,quality,messages=read_fit(path)
-            result.update(quality=quality,start=samples[0]['timestamp'] if samples else None)
+            result.update(quality=quality,start=samples[0]['timestamp'] if samples else None,
+                          fit_repetitions=extract_repetitions(messages))
             if samples:
                 date=datetime.fromisoformat(samples[0]['timestamp']).date()
                 if date<since.date() or date>now.date():
