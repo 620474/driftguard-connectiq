@@ -164,14 +164,17 @@ class ProductionRecorder {
             }
         }
         if (recovery.delta != null && recovery.reason.equals("READY")) {
-            var hrrMarker = mLastEffortMarker + ":" + recovery.delta.format("%.2f");
+            var completedHrr = recovery.delta as Float;
+            var hrrMarker = mLastEffortMarker + ":" + completedHrr.format("%.2f");
             if (!hrrMarker.equals(mLastHrrMarker)) {
                 mLastHrrMarker = hrrMarker;
-                (mLastHrr60Field as FitContributor.Field).setData(recovery.delta);
+                if (mLastHrr60Field != null) {
+                    (mLastHrr60Field as FitContributor.Field).setData(completedHrr);
+                }
                 if (mPendingHrrRep != 0 && mRepEventField != null) {
                     (mRepIdField as FitContributor.Field).setData(mPendingHrrRep);
                     (mRepHrrField as FitContributor.Field).setData(
-                        (recovery.delta as Float).toNumber());
+                        completedHrr.toNumber());
                     (mRepEventField as FitContributor.Field).setData(2);
                     mPendingHrrRep = 0;
                 }
