@@ -61,3 +61,23 @@ function recorderCompletionIdentityIgnoresNextAutoStart(logger as Test.Logger) a
     Test.assert(!recorder.effortMarker(session).equals(manual));
     return true;
 }
+
+(:test)
+function adaptiveSplitsTempoSurgeAndRejectsEasyReturn(logger as Test.Logger) as Boolean {
+    var e=new AutoEffortEngine();e.experimental=true;
+    for(var i=0;i<60;i+=1){e.addSample(100,true);}
+    for(var j=0;j<180;j+=1){e.addSample(200,true);}
+    for(var k=0;k<3;k+=1){e.addSample(280,true);}
+    Test.assertEqual(e.lastSeconds,180);Test.assertEqual(e.lastMean as Float,200.0f);
+    Test.assertEqual(e.seconds,3);Test.assert(e.active);
+    for(var n=0;n<57;n+=1){e.addSample(280,true);}
+    for(var a=0;a<5;a+=1){e.addSample(200,true);}
+    Test.assertEqual(e.lastSeconds,60);Test.assertEqual(e.lastMean as Float,280.0f);
+    Test.assert(!e.active);
+    e.reset();
+    for(var b=0;b<60;b+=1){e.addSample(0,true);}
+    for(var c=0;c<90;c+=1){e.addSample(120,true);}
+    Test.assert(!e.active);Test.assertEqual(e.sequence,0);
+    e.addSample(null,true);Test.assertEqual(e.historyCount,0);
+    return true;
+}

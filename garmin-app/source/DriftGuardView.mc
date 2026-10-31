@@ -108,11 +108,11 @@ class DriftGuardView extends WatchUi.DataField {
         intervalHistory.add(power,currentHeartRate,isTimerRunning);
         recovery.sample(currentHeartRate,power,isTimerRunning);
         var priorEnd=intervals.automatic.detectedEnd;
-        var wasActive=intervals.automatic.active;
+        var priorSequence=intervals.automatic.sequence;
         intervals.addSample(power, isTimerRunning);
         if (intervals.source.equals("AUTO")) {
-            if (!wasActive && intervals.automatic.active) { recovery.cancel("NEW EFFORT"); }
-            if (priorEnd!=intervals.automatic.detectedEnd && !intervals.lastInterrupted) {
+            if (priorSequence!=intervals.automatic.sequence && intervals.automatic.active) { recovery.cancel("NEW EFFORT"); }
+            if (priorEnd!=intervals.automatic.detectedEnd && !intervals.lastInterrupted && !intervals.automatic.active) {
                 recovery.begin(5,intervals.lastMean,intervals.lastSeconds);
             }
         }
@@ -275,7 +275,7 @@ class DriftGuardView extends WatchUi.DataField {
         var compact=h<150;
         var autoMode=intervals.source.equals("AUTO");
         var waiting=autoMode ? !intervals.automatic.active : intervals.sequence==0;
-        var title="INTERVALS / " + intervals.source;
+        var title="INTERVALS / " + (intervals.source.equals("AUTO") && intervals.automatic.experimental ? "AUTO EXP" : intervals.source);
         if (autoMode && intervals.automatic.active && intervals.seconds<10) { title="CONFIRMING"; }
         if (compact) {
             var heading=title;
@@ -338,7 +338,7 @@ class DriftGuardView extends WatchUi.DataField {
         var align=Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         var autoMode=intervals.source.equals("AUTO");
         var waiting=autoMode ? !intervals.automatic.active : intervals.sequence==0;
-        drawLabel(dc,x,h*FULL_HEADER_Y,"INTERVALS / " + intervals.source,Graphics.TEXT_JUSTIFY_CENTER);
+        drawLabel(dc,x,h*FULL_HEADER_Y,"INTERVALS / " + (intervals.source.equals("AUTO") && intervals.automatic.experimental ? "AUTO EXP" : intervals.source),Graphics.TEXT_JUSTIFY_CENTER);
         var mean=intervals.meanPower();
         if (!waiting && mean!=null && !intervals.paused) {
             dc.setColor(mForeground,Graphics.COLOR_TRANSPARENT);

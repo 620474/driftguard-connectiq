@@ -4,7 +4,7 @@ import Toybox.Lang;
 class IntervalSession extends IntervalEngine {
     var automatic as AutoEffortEngine;
     function initialize() {
-        automatic=new AutoEffortEngine();
+        automatic=new AutoEffortEngine();automatic.experimental=true;
         IntervalEngine.initialize(); reset();
     }
     function reset() as Void {

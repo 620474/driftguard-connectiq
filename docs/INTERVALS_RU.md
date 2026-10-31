@@ -85,3 +85,21 @@ Smart Recording не равен 1 Hz compute: число записей не в�
 Добавлен экспериментальный детектор по мощности: [AUTO_EFFORTS_RU.md](AUTO_EFFORTS_RU.md).
 Он пока не включён в приложение на Edge. В live-версии остаются явные границы.
 Правила времени offline-импорта: [TIMER_POLICY_RU.md](TIMER_POLICY_RU.md).
+
+
+## Experimental AUTO EXP (owner enabled, 2026-10-31)
+
+AUTO sessions enable the experimental local-step variant on Edge. Explicit manual
+and workout segments retain priority. The heading identifies AUTO EXP. A rolling
+60-s median includes active-effort samples. Entry requires >=180 W and >=115% of
+the median and >=median+30 W for 3 samples. The confirmed start is backdated two
+samples. Exit requires five samples below 115% or median-at-start+20 W; those exit
+samples are excluded. A brief dip is included when power returns. Save >=20-s
+efforts; pause/dropout marks incomplete and clears baseline. After >=120 s of an
+active effort, another confirmed local step closes the parent and starts a new
+segment without counting the confirming samples twice. Such a split cancels HRR;
+it is not recovery. Exit baseline stays frozen for each segment. These are
+engineering choices, not validated physiological intensity zones. The absolute
+180 W floor is not individualized and may miss low-power athletes' intervals.
+Legacy balanced-v1 remains available internally for parity tests; actual AUTO
+sessions explicitly enable the experiment. DRIFT and FIT field schema unchanged.

@@ -1,3 +1,14 @@
+# Enable experimental local surge detector — 2026-10-31
+
+Owner explicitly requested enabling it on Edge. Enable for AUTO sessions; keep
+legacy direct-engine parity tests. Rolling 60-s baseline during active efforts,
+3-s start, 5-s exit, 180 W entry floor, 20-s saved effort minimum. After >=120 s
+allow a new local step to split the sustained parent. Cancel HRR at such splits.
+Mark AUTO EXP in header. Manual/workout priority, DRIFT and FIT schema unchanged.
+Run deterministic regression plus private actual FIT replay in Monkey C.
+
+---
+
 # FIT duplicates and tempo surges — 2026-10-31
 
 Owner authorized fixes after activity 24921319846 review. Fix completion identity
