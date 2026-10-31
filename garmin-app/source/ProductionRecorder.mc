@@ -26,8 +26,11 @@ class ProductionRecorder {
     private var mLastEffortSecondsField as FitContributor.Field? = null;
     private var mLastEffortSourceField as FitContributor.Field? = null;
     private var mLastHrr60Field as FitContributor.Field? = null;
+    private var mLastActiveHrrField as FitContributor.Field? = null;
+    private var mRepActiveHrrField as FitContributor.Field? = null;
     private var mLastEffortMarker as String = "";
     private var mLastHrrMarker as String = "";
+    private var mLastActiveHrrMarker as String = "";
 
     // Per-effort RECORD stream. 2+2+2+1+2+1 = 10 additional bytes;
     // existing RECORD fields consume 14 B, staying below the 32 B cap.
@@ -108,6 +111,12 @@ class ProductionRecorder {
             mRepEventField = field.createField("dg_rep_evt", 19,
                 FitContributor.DATA_TYPE_UINT8,
                 {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "event"});
+            mLastActiveHrrField = field.createField("dg_hrr60_active_last", 20,
+                FitContributor.DATA_TYPE_FLOAT,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "bpm"});
+            mRepActiveHrrField = field.createField("dg_rep_hrr_active", 21,
+                FitContributor.DATA_TYPE_SINT16,
+                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"});
         } catch (e) {
             mEfficiencyField = null;
         }
@@ -124,6 +133,7 @@ class ProductionRecorder {
         lastCadence = 0;
         mLastEffortMarker = "";
         mLastHrrMarker = "";
+        mLastActiveHrrMarker = "";
         mRepCounter = 0;
         mPendingHrrRep = 0;
     }
@@ -166,10 +176,13 @@ class ProductionRecorder {
                     (mRepEventField as FitContributor.Field).setData(1);
                     // Negative 32768 means HRR is pending or unavailable.
                     (mRepHrrField as FitContributor.Field).setData(-32768);
+                    if (mRepActiveHrrField != null) {
+                        (mRepActiveHrrField as FitContributor.Field).setData(-32768);
+                    }
                 }
             }
         }
-        if (recovery.delta != null && recovery.reason.equals("READY")) {
+        if (recovery.delta != null) {
             var completedHrr = recovery.delta as Float;
             var hrrMarker = mLastEffortMarker + ":" + completedHrr.format("%.2f");
             if (!hrrMarker.equals(mLastHrrMarker)) {
@@ -182,7 +195,22 @@ class ProductionRecorder {
                     (mRepHrrField as FitContributor.Field).setData(
                         completedHrr.toNumber());
                     (mRepEventField as FitContributor.Field).setData(2);
-                    mPendingHrrRep = 0;
+                    // Keep the repetition association until active HRR is saved.
+                }
+            }
+        }
+        if (recovery.activeDelta != null) {
+            var activeHrr = recovery.activeDelta as Float;
+            var activeMarker = mLastEffortMarker + ":" + activeHrr.format("%.2f");
+            if (!activeMarker.equals(mLastActiveHrrMarker)) {
+                mLastActiveHrrMarker = activeMarker;
+                if (mLastActiveHrrField != null) {
+                    (mLastActiveHrrField as FitContributor.Field).setData(activeHrr);
+                }
+                if (mPendingHrrRep != 0 && mRepEventField != null && mRepActiveHrrField != null) {
+                    (mRepIdField as FitContributor.Field).setData(mPendingHrrRep);
+                    (mRepActiveHrrField as FitContributor.Field).setData(activeHrr.toNumber());
+                    (mRepEventField as FitContributor.Field).setData(3);
                 }
             }
         }
