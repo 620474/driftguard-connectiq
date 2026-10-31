@@ -20,6 +20,26 @@ class ProductionRecorder {
     private var mSessionPowerChangeField as FitContributor.Field? = null;
     private var mSessionCompatField as FitContributor.Field? = null;
 
+    // Session-only summaries avoid adding to the 32-byte RECORD developer field budget.
+    // These are the LAST completed effort / LAST valid recovery, not ride averages.
+    private var mLastEffortPowerField as FitContributor.Field? = null;
+    private var mLastEffortSecondsField as FitContributor.Field? = null;
+    private var mLastEffortSourceField as FitContributor.Field? = null;
+    private var mLastHrr60Field as FitContributor.Field? = null;
+    private var mLastEffortMarker as String = "";
+    private var mLastHrrMarker as String = "";
+
+    // Per-effort RECORD stream. 2+2+2+1+2+1 = 10 additional bytes;
+    // existing RECORD fields consume 14 B, staying below the 32 B cap.
+    private var mRepIdField as FitContributor.Field? = null;
+    private var mRepPowerField as FitContributor.Field? = null;
+    private var mRepSecondsField as FitContributor.Field? = null;
+    private var mRepSourceField as FitContributor.Field? = null;
+    private var mRepHrrField as FitContributor.Field? = null;
+    private var mRepEventField as FitContributor.Field? = null;
+    private var mRepCounter as Number = 0;
+    private var mPendingHrrRep as Number = 0;
+
     private var mLastMinute as Number = 0;
     private var mCadenceSum as Number = 0;
     private var mCadenceSeconds as Number = 0;
@@ -58,6 +78,36 @@ class ProductionRecorder {
             mSessionCompatField = field.createField("dg_compat_drift", 9,
                 FitContributor.DATA_TYPE_FLOAT,
                 {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "%"});
+            mLastEffortPowerField = field.createField("dg_last_effort_w", 10,
+                FitContributor.DATA_TYPE_FLOAT,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "W"});
+            mLastEffortSecondsField = field.createField("dg_last_effort_s", 11,
+                FitContributor.DATA_TYPE_UINT16,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "s"});
+            mLastEffortSourceField = field.createField("dg_last_effort_src", 12,
+                FitContributor.DATA_TYPE_UINT8,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "mode"});
+            mLastHrr60Field = field.createField("dg_hrr60_last", 13,
+                FitContributor.DATA_TYPE_FLOAT,
+                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "bpm"});
+            mRepIdField = field.createField("dg_rep_id", 14,
+                FitContributor.DATA_TYPE_UINT16,
+                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "rep"});
+            mRepPowerField = field.createField("dg_rep_w", 15,
+                FitContributor.DATA_TYPE_UINT16,
+                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "W"});
+            mRepSecondsField = field.createField("dg_rep_s", 16,
+                FitContributor.DATA_TYPE_UINT16,
+                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "s"});
+            mRepSourceField = field.createField("dg_rep_src", 17,
+                FitContributor.DATA_TYPE_UINT8,
+                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "mode"});
+            mRepHrrField = field.createField("dg_rep_hrr", 18,
+                FitContributor.DATA_TYPE_SINT16,
+                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"});
+            mRepEventField = field.createField("dg_rep_evt", 19,
+                FitContributor.DATA_TYPE_UINT8,
+                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "event"});
         } catch (e) {
             mEfficiencyField = null;
         }
@@ -72,6 +122,61 @@ class ProductionRecorder {
         mLastMinute = 0;
         resetCadence();
         lastCadence = 0;
+        mLastEffortMarker = "";
+        mLastHrrMarker = "";
+        mRepCounter = 0;
+        mPendingHrrRep = 0;
+    }
+
+    // Last completed effort and last valid HRR60 are independent session snapshots.
+    // Source: 1 automatic, 2 manual lap, 3 structured workout.
+    function onIntervals(intervals as IntervalSession, recovery as HeartRecovery) as Void {
+        if (mLastEffortPowerField == null) { return; }
+        var mode = intervals.source.equals("AUTO") ? 1 :
+            (intervals.source.equals("MANUAL") ? 2 : 3);
+        var effort = intervals.lastMean;
+        var duration = intervals.lastSeconds;
+        if (effort != null && duration > 0) {
+            var marker = mode.format("%d") + ":" + intervals.sequence.format("%d") +
+                ":" + duration.format("%d");
+            if (!marker.equals(mLastEffortMarker)) {
+                mLastEffortMarker = marker;
+                (mLastEffortPowerField as FitContributor.Field).setData(effort);
+                (mLastEffortSecondsField as FitContributor.Field).setData(
+                    duration > 65535 ? 65535 : duration);
+                (mLastEffortSourceField as FitContributor.Field).setData(mode);
+                // A monotonically increasing ID permits reconstruction of every
+                // completed effort from held RECORD values (including Smart Recording).
+                // Wrap is explicit; very long activities should be flagged by decoder.
+                mRepCounter = mRepCounter >= 65534 ? 1 : mRepCounter + 1;
+                mPendingHrrRep = mRepCounter;
+                if (mRepEventField != null) {
+                    (mRepIdField as FitContributor.Field).setData(mRepCounter);
+                    (mRepPowerField as FitContributor.Field).setData(
+                        (effort as Float) > 65534 ? 65534 : (effort as Float).toNumber());
+                    (mRepSecondsField as FitContributor.Field).setData(
+                        duration > 65534 ? 65534 : duration);
+                    (mRepSourceField as FitContributor.Field).setData(mode);
+                    (mRepEventField as FitContributor.Field).setData(1);
+                    // Negative 32768 means HRR is pending or unavailable.
+                    (mRepHrrField as FitContributor.Field).setData(-32768);
+                }
+            }
+        }
+        if (recovery.delta != null && recovery.reason.equals("READY")) {
+            var hrrMarker = mLastEffortMarker + ":" + recovery.delta.format("%.2f");
+            if (!hrrMarker.equals(mLastHrrMarker)) {
+                mLastHrrMarker = hrrMarker;
+                (mLastHrr60Field as FitContributor.Field).setData(recovery.delta);
+                if (mPendingHrrRep != 0 && mRepEventField != null) {
+                    (mRepIdField as FitContributor.Field).setData(mPendingHrrRep);
+                    (mRepHrrField as FitContributor.Field).setData(
+                        (recovery.delta as Float).toNumber());
+                    (mRepEventField as FitContributor.Field).setData(2);
+                    mPendingHrrRep = 0;
+                }
+            }
+        }
     }
 
     // Called every second after the engine has taken the sample.

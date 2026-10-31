@@ -117,6 +117,7 @@ class DriftGuardView extends WatchUi.DataField {
             }
         }
         recorder.onSecond(driftEngine, info.currentCadence, isTimerRunning);
+        recorder.onIntervals(intervals, recovery);
         // Instant power / HR is noise (HR lags power); show the last full minute instead.
         var ratio = driftEngine.getHistory().getLatest();
         ratioText = ratio == null ? "--" : ratio.format("%.2f");
@@ -154,6 +155,7 @@ class DriftGuardView extends WatchUi.DataField {
             if (oldValid==oldSeconds) { recovery.begin(0,intervals.lastMean,intervals.lastSeconds); }
             else { recovery.cancel("POWER MISSING"); }
         } else if (!explicitSource) { recovery.cancel("NEW SEGMENT"); }
+        recorder.onIntervals(intervals, recovery);
     }
     function onTimerLap2(trigger as WatchUi.DataField.LapInfoType) as Boolean {
         if (trigger[:lapTrigger] == WatchUi.DataField.LAP_TRIGGER_MANUAL) {

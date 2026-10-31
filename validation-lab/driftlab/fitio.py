@@ -58,6 +58,63 @@ def read_fit(path):
     return samples, quality, messages
 
 
+def extract_repetitions(messages):
+    """Collect FIT RECORD developer events by monotonic repetition ID.
+
+    A held event value may appear in many successive RECORD messages.
+    Collapse repeats, attach an HRR update to its parent effort, and report
+    missing starts or gaps explicitly instead of inventing repetitions.
+    """
+    reps = []
+    by_id = {}
+    errors = []
+    last_event = None
+    for message in messages:
+        if message.get('type') != 'record':
+            continue
+        values = message.get('fields', {})
+        rep_id = values.get('dg_rep_id')
+        event = values.get('dg_rep_evt')
+        if not isinstance(rep_id, int) or not isinstance(event, int) or rep_id <= 0:
+            continue
+        marker = (rep_id, event)
+        if marker == last_event:
+            continue
+        last_event = marker
+        if event == 1:
+            duration = values.get('dg_rep_s')
+            power = values.get('dg_rep_w')
+            source = values.get('dg_rep_src')
+            if not (isinstance(duration, int) and duration > 0 and
+                    isinstance(power, (int, float)) and power >= 0 and source in (1, 2, 3)):
+                errors.append(f'invalid effort fields: {rep_id}')
+                continue
+            if rep_id in by_id:
+                errors.append(f'duplicate/wrapped repetition id: {rep_id}')
+                continue
+            item = dict(id=rep_id, time=values.get('timestamp'), duration_s=duration,
+                        power_w=power, source={1:'AUTO',2:'MANUAL',3:'WORKOUT'}[source],
+                        hrr60_bpm=None)
+            reps.append(item)
+            by_id[rep_id] = item
+        elif event == 2:
+            item = by_id.get(rep_id)
+            hrr = values.get('dg_rep_hrr')
+            if item is None:
+                errors.append(f'HRR without effort: {rep_id}')
+            elif isinstance(hrr, (int, float)) and -300 <= hrr <= 300:
+                item['hrr60_bpm'] = hrr
+            else:
+                errors.append(f'invalid HRR: {rep_id}')
+        else:
+            errors.append(f'unknown repetition event: {event}')
+    ids = [rep['id'] for rep in reps]
+    for previous, current in zip(ids, ids[1:]):
+        if current != previous + 1 and not (previous == 65534 and current == 1):
+            errors.append(f'possible missed effort(s): {previous} -> {current}')
+    return dict(repetitions=reps, issues=errors)
+
+
 def normalize(records, events):
     issues = []
     stamped = [r for r in records if r.get('timestamp') is not None]
