@@ -139,21 +139,14 @@ class AutoEffortEngine {
             }
         }
         idle(value);
-        // A long, stationary plateau is a new riding baseline, not a surge.
-        // Do not emit a completed effort: that would invent a >4 min interval.
-        // Real long sustained work is intentionally unclassified by AUTO;
-        // workout/manual LAP is the supported source for those repetitions.
-        if (active && seconds>=240 && historyCount==60) {
-            var local=baseline();
-            if (value*100>=local*92 && value*100<=local*108) {
-                steadyPlateauSeconds+=1;
-            } else {
-                steadyPlateauSeconds=0;
-            }
-            if (steadyPlateauSeconds>=30) {
-                active=false;seconds=0;powerSum=0.0f;pendingCount=0;
-                gapCount=0;steadyPlateauSeconds=0;
-            }
+        // AUTO is deliberately limited to short surges. A sustained transition
+        // to a new riding level must never become a bogus 30-minute repetition.
+        // At 240 s suppress the candidate without calling close(), so no
+        // completed-effort FIT event or HRR is produced.
+        // Longer prescribed intervals must use WORKOUT or manual LAP.
+        if (active && seconds>=240) {
+            active=false;seconds=0;powerSum=0.0f;pendingCount=0;
+            gapCount=0;steadyPlateauSeconds=0;
         }
     }
     function meanPower() as Float? { return active ? powerSum/seconds : null; }
