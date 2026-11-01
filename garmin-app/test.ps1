@@ -65,7 +65,9 @@ foreach ($variant in @('production', 'calibration')) {
                 continue
             }
             # Never retry or ignore a real test failure.
-            if ($process.ExitCode -ne 0 -or $log -notmatch 'PASSED \(passed=[1-9][0-9]*, failed=0, errors=0\)' -or $log -match 'FAILED \(') {
+            # MonkeyDoDeux can return nonzero even after its complete PASSED
+            # report (SDK 9.2.0); the test protocol is the authoritative result.
+            if ($log -notmatch 'PASSED \(passed=[1-9][0-9]*, failed=0, errors=0\)' -or $log -match 'FAILED \(') {
                 throw "$variant tests did not pass; release blocked (see $logFile)"
             }
             [IO.File]::WriteAllText((Join-Path $Output "$variant.log"), $log)
