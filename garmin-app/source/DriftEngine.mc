@@ -68,6 +68,11 @@ class DriftEngine {
 
     // The minute being collected.
     var mSecond as Number = 0;
+    var mPowerSquares as Float = 0.0f;
+    var mPauseSeen as Boolean = false;
+    var mMinuteInterrupted as Boolean = false;
+    var lastValidDrift as Float? = null;
+    var lastValidMinute as Number = 0;
     var mValidSeconds as Number = 0;
     var mPowerSum as Number = 0;
     var mHeartRateSum as Number = 0;
@@ -109,6 +114,7 @@ class DriftEngine {
             mPowerHistogram[i] = 0;
         }
         mHistogramCount = 0;
+        mPauseSeen=false;lastValidDrift=null;lastValidMinute=0;
         resetMinute();
         mMinutes = 0;
         mPostWarmupMinutes = 0;
@@ -124,17 +130,20 @@ class DriftEngine {
     // timer (pause, auto-pause) are neither valid nor invalid: they are skipped.
     function addSample(power as Number?, heartRate as Number?, isTimerRunning as Boolean) as Void {
         if (!isTimerRunning) {
+            if(mMinutes>0 || mSecond>0){mPauseSeen=true;}
             return;
         }
+        if(mPauseSeen){mRecoveryLeft=RECOVERY_MINUTES;mMinuteInterrupted=true;mPauseSeen=false;}
         mSecond += 1;
-        var hasPower = power != null && power > 0;
-        if (heartRate != null && heartRate > 0) {
+        var hasPower = power != null && power > 0 && power <= 10000;
+        if (heartRate != null && heartRate > 0 && heartRate <= 300) {
             mCompatSeconds += 1;
             mCompatHeartRateSum += heartRate;
             if (hasPower) {
                 mCompatPowerSum += power as Number;
                 mValidSeconds += 1;
                 mPowerSum += power as Number;
+                mPowerSquares += (power as Number).toFloat()*(power as Number);
                 mHeartRateSum += heartRate;
             }
         }
@@ -287,7 +296,9 @@ class DriftEngine {
                 var minutePower = mPowerSum / mValidSeconds;
                 addToHistogram(minutePower);
                 var median = medianPower();
-                inBand = minutePower * 100 >= median * (100 - STEADY_BAND_PERCENT) &&
+                var mean=mPowerSum.toFloat()/mValidSeconds;
+                var stable=mPowerSquares/mValidSeconds <= mean*mean*1.09f && !mMinuteInterrupted;
+                inBand = stable && minutePower * 100 >= median * (100 - STEADY_BAND_PERCENT) &&
                     minutePower * 100 <= median * (100 + STEADY_BAND_PERCENT);
             }
             if (!inBand) {
@@ -335,6 +346,7 @@ class DriftEngine {
             mRideState = stateFor(mRideResult);
         }
         mRideBand = labelFor(mRideState, mRideResult, mRideBand);
+        if(mRideState==DRIFT_VALID){lastValidDrift=(mRideResult as Array<Float>)[0];lastValidMinute=mMinutes;}
 
         if (mPostWarmupMinutes < LAST_WINDOW_MINUTES) {
             mLastState = DRIFT_COLLECTING;
@@ -390,7 +402,7 @@ class DriftEngine {
     }
 
     private function resetMinute() as Void {
-        mSecond = 0;
+        mSecond = 0;mPowerSquares=0.0f;mMinuteInterrupted=false;
         mValidSeconds = 0;
         mPowerSum = 0;
         mHeartRateSum = 0;

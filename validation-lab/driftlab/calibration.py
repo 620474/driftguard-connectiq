@@ -6,7 +6,7 @@ from .fitio import read_fit
 from .oracle import Engine
 from .calibration_schema import validate_messages
 
-REASONS = {'warm-up': 0, 'insufficient valid seconds': 1, 'power out of band': 2,
+REASONS = {'warm-up': 0, 'insufficient valid seconds': 1, 'power out of band': 2, 'variable power': 2, 'timer resume': 2,
            'recovery after unstable minute': 3, 'steady': 4}
 STATES = {'WARMUP': 0, 'COLLECTING': 1, 'NOT_STEADY': 2, 'POWER_CHANGED': 3, 'VALID': 4}
 FIELDS = ('dg_sample_seq', 'dg_valid_seconds', 'dg_reject_reason', 'dg_min_power_sum',
@@ -24,16 +24,16 @@ def compare(samples, messages, quality=None):
         return dict(status='unsupported', issues=['missing/unsupported version or config, or multiple sessions'])
     expected, engine, pending = {}, Engine(), []
     for s in samples:
+        engine.add(s['power'], s['hr'], s['running'])
         if not s['running']:
             continue
         pending.append(s)
-        engine.add(s['power'], s['hr'])
         if len(pending) == 60:
             m = engine.minutes[-1]
-            compat = [s for s in pending if s['hr'] is not None and s['hr'] > 0]
+            compat = [s for s in pending if s['hr'] is not None and 0 < s['hr'] <= 300]
             expected[m['minute']] = dict(zip(FIELDS, (
                 m['minute'] * 60, m['valid_seconds'], REASONS[m['reason']], m['power_sum'], m['hr_sum'],
-                len(compat), sum(max(0, s['power'] or 0) for s in compat), sum(s['hr'] for s in compat),
+                len(compat), sum(s['power'] if s['power'] is not None and 0 < s['power'] <= 10000 else 0 for s in compat), sum(s['hr'] for s in compat),
                 int(m['steady']), STATES[m['ride_state']]
             )), timestamp=s['timestamp'], drift=m['ride_drift'])
             pending = []

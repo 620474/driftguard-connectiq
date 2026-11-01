@@ -20,28 +20,13 @@ class ProductionRecorder {
     private var mSessionPowerChangeField as FitContributor.Field? = null;
     private var mSessionCompatField as FitContributor.Field? = null;
 
-    // Session-only summaries avoid adding to the 32-byte RECORD developer field budget.
-    // These are the LAST completed effort / LAST valid recovery, not ride averages.
-    private var mLastEffortPowerField as FitContributor.Field? = null;
-    private var mLastEffortSecondsField as FitContributor.Field? = null;
-    private var mLastEffortSourceField as FitContributor.Field? = null;
-    private var mLastHrr60Field as FitContributor.Field? = null;
-    private var mLastActiveHrrField as FitContributor.Field? = null;
-    private var mRepActiveHrrField as FitContributor.Field? = null;
-    private var mLastEffortMarker as String = "";
-    private var mLastHrrMarker as String = "";
-    private var mLastActiveHrrMarker as String = "";
-
-    // Per-effort RECORD stream. 2+2+2+1+2+1 = 10 additional bytes;
-    // existing RECORD fields consume 14 B, staying below the 32 B cap.
-    private var mRepIdField as FitContributor.Field? = null;
-    private var mRepPowerField as FitContributor.Field? = null;
-    private var mRepSecondsField as FitContributor.Field? = null;
-    private var mRepSourceField as FitContributor.Field? = null;
-    private var mRepHrrField as FitContributor.Field? = null;
-    private var mRepEventField as FitContributor.Field? = null;
+    // Schema 2: base RECORD 11 B + repetitions 21 B = 32 B.
+    // Base SESSION 14 B + metadata 9 B = 23 B. Calibration excludes extras.
+    private var extra as Array<FitContributor.Field> = [];
+    private var ready as Boolean = false;
+    private var lastCompletion as Number = 0;
     private var mRepCounter as Number = 0;
-    private var mPendingHrrRep as Number = 0;
+    private const UNAVAILABLE = -9999.0f;
 
     private var mLastMinute as Number = 0;
     private var mCadenceSum as Number = 0;
@@ -49,8 +34,8 @@ class ProductionRecorder {
     var lastCadence as Number = 0;
 
     // createField must be called while the data field is being initialized. If the
-    // fields cannot be created (e.g. unit tests, or the device's FIT field budget
-    // is used up by other apps), recording is off and everything else still works.
+    // fields fail with a catchable exception, recording is disabled. VM allocation
+    // errors are fatal: enforce byte budgets before launch, and pass null in tests.
     function initialize(field as WatchUi.DataField?) {
         if (field == null) {
             return;
@@ -81,144 +66,114 @@ class ProductionRecorder {
             mSessionCompatField = field.createField("dg_compat_drift", 9,
                 FitContributor.DATA_TYPE_FLOAT,
                 {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "%"});
-            mLastEffortPowerField = field.createField("dg_last_effort_w", 10,
-                FitContributor.DATA_TYPE_FLOAT,
-                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "W"});
-            mLastEffortSecondsField = field.createField("dg_last_effort_s", 11,
-                FitContributor.DATA_TYPE_UINT16,
-                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "s"});
-            mLastEffortSourceField = field.createField("dg_last_effort_src", 12,
-                FitContributor.DATA_TYPE_UINT8,
-                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "mode"});
-            mLastHrr60Field = field.createField("dg_hrr60_last", 13,
-                FitContributor.DATA_TYPE_FLOAT,
-                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "bpm"});
-            mRepIdField = field.createField("dg_rep_id", 14,
-                FitContributor.DATA_TYPE_UINT16,
-                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "rep"});
-            mRepPowerField = field.createField("dg_rep_w", 15,
-                FitContributor.DATA_TYPE_UINT16,
-                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "W"});
-            mRepSecondsField = field.createField("dg_rep_s", 16,
-                FitContributor.DATA_TYPE_UINT16,
-                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "s"});
-            mRepSourceField = field.createField("dg_rep_src", 17,
-                FitContributor.DATA_TYPE_UINT8,
-                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "mode"});
-            mRepHrrField = field.createField("dg_rep_hrr", 18,
-                FitContributor.DATA_TYPE_SINT16,
-                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"});
-            mRepEventField = field.createField("dg_rep_evt", 19,
-                FitContributor.DATA_TYPE_UINT8,
-                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "event"});
-            mLastActiveHrrField = field.createField("dg_hrr60_active_last", 20,
-                FitContributor.DATA_TYPE_FLOAT,
-                {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "bpm"});
-            mRepActiveHrrField = field.createField("dg_rep_hrr_active", 21,
-                FitContributor.DATA_TYPE_SINT16,
-                {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"});
-        } catch (e) {
-            mEfficiencyField = null;
-        }
+            initializeIntervals(field);
+            ready = true;
+            ProductionRecorder.reset();
+        } catch (e) { ready = false; }
     }
 
-    // True when every FIT field was created and values are being recorded.
-    function isRecording() as Boolean {
-        return mSessionCompatField != null && mEfficiencyField != null;
+    (:production)
+    function initializeIntervals(field as WatchUi.DataField) as Void {
+        extra.add(field.createField("dg_rep_id", 14, FitContributor.DATA_TYPE_UINT16,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "rep"}));
+        extra.add(field.createField("dg_rep_w", 15, FitContributor.DATA_TYPE_UINT16,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "W"}));
+        extra.add(field.createField("dg_rep_s", 16, FitContributor.DATA_TYPE_UINT16,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "s"}));
+        extra.add(field.createField("dg_rep_src", 17, FitContributor.DATA_TYPE_UINT8,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "mode"}));
+        extra.add(field.createField("dg_rep_hrr", 18, FitContributor.DATA_TYPE_SINT16,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"}));
+        extra.add(field.createField("dg_rep_evt", 19, FitContributor.DATA_TYPE_UINT8,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "event"}));
+        extra.add(field.createField("dg_rep_hrr_active", 21, FitContributor.DATA_TYPE_SINT16,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"}));
+        extra.add(field.createField("dg_schema_version", 22, FitContributor.DATA_TYPE_UINT8,
+            {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "version"}));
+        extra.add(field.createField("dg_last_valid_drift", 23, FitContributor.DATA_TYPE_FLOAT,
+            {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "%"}));
+        extra.add(field.createField("dg_last_valid_minute", 24, FitContributor.DATA_TYPE_UINT16,
+            {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "min"}));
+        extra.add(field.createField("dg_rep_count", 25, FitContributor.DATA_TYPE_UINT16,
+            {:mesgType => FitContributor.MESG_TYPE_SESSION, :units => "rep"}));
+        extra.add(field.createField("dg_rep_quality", 27, FitContributor.DATA_TYPE_UINT8,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "flags"}));
+        extra.add(field.createField("dg_rep_valid_s", 28, FitContributor.DATA_TYPE_UINT16,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "s"}));
+        extra.add(field.createField("dg_rep_recovery_w", 29, FitContributor.DATA_TYPE_UINT16,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "W"}));
+        extra.add(field.createField("dg_rep_end_s", 30, FitContributor.DATA_TYPE_UINT32,
+            {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "s"}));
     }
+    (:calibration)
+    function initializeIntervals(field as WatchUi.DataField) as Void {}
+
+    function isRecording() as Boolean { return ready; }
 
     function reset() as Void {
-        mLastMinute = 0;
-        resetCadence();
-        lastCadence = 0;
-        mLastEffortMarker = "";
-        mLastHrrMarker = "";
-        mLastActiveHrrMarker = "";
-        mRepCounter = 0;
-        mPendingHrrRep = 0;
+        mLastMinute=0;resetCadence();lastCadence=0;
+        lastCompletion=0;mRepCounter=0;
+        if(!ready){return;}
+        try {
+            (mEfficiencyField as FitContributor.Field).setData(0.0f);
+            (mSteadyField as FitContributor.Field).setData(0);
+            (mCadenceField as FitContributor.Field).setData(0);
+            (mRideDriftField as FitContributor.Field).setData(UNAVAILABLE);
+            (mRideStateField as FitContributor.Field).setData(0);
+            (mSessionDriftField as FitContributor.Field).setData(UNAVAILABLE);
+            (mSessionStateField as FitContributor.Field).setData(0);
+            (mSessionSteadyField as FitContributor.Field).setData(0);
+            (mSessionPowerChangeField as FitContributor.Field).setData(UNAVAILABLE);
+            (mSessionCompatField as FitContributor.Field).setData(UNAVAILABLE);
+            for(var i=0;i<extra.size();i+=1){extra[i].setData(0);}
+            if(extra.size()>0){
+                extra[4].setData(-32768);extra[6].setData(-32768);
+                extra[7].setData(2);extra[8].setData(UNAVAILABLE);
+                extra[13].setData(65535);
+            }
+        } catch(e){ready=false;}
     }
 
-    // AUTO sequence advances at START; detectedEnd changes only on completion.
-    // Keying held lastMean by sequence records the previous effort again at next start.
     function effortMarker(intervals as IntervalSession) as String {
-        var identity=intervals.source.equals("AUTO") ? intervals.automatic.detectedEnd : intervals.sequence;
-        return intervals.source + ":" + identity.format("%d") + ":" + intervals.lastSeconds.format("%d");
+        return intervals.completionId.format("%d");
     }
 
-    // Last completed effort and last valid HRR60 are independent session snapshots.
-    // Source: 1 automatic, 2 manual lap, 3 structured workout.
+    // Completion identity survives mode changes and repeated workout starts.
+    // HRR carries its own parent; a previous recovery cannot attach to a new rep.
     function onIntervals(intervals as IntervalSession, recovery as HeartRecovery) as Void {
-        if (mLastEffortPowerField == null) { return; }
-        var mode = intervals.source.equals("AUTO") ? 1 :
-            (intervals.source.equals("MANUAL") ? 2 : 3);
-        var effort = intervals.lastMean;
-        var duration = intervals.lastSeconds;
-        if (effort != null && duration > 0) {
-            var marker = effortMarker(intervals);
-            if (!marker.equals(mLastEffortMarker)) {
-                mLastEffortMarker = marker;
-                (mLastEffortPowerField as FitContributor.Field).setData(effort);
-                (mLastEffortSecondsField as FitContributor.Field).setData(
-                    duration > 65535 ? 65535 : duration);
-                (mLastEffortSourceField as FitContributor.Field).setData(mode);
-                // A monotonically increasing ID permits reconstruction of every
-                // completed effort from held RECORD values when physically sampled.
-                // Wrap is explicit; very long activities should be flagged by decoder.
-                mRepCounter = mRepCounter >= 65534 ? 1 : mRepCounter + 1;
-                mPendingHrrRep = mRepCounter;
-                if (mRepEventField != null) {
-                    (mRepIdField as FitContributor.Field).setData(mRepCounter);
-                    (mRepPowerField as FitContributor.Field).setData(
-                        (effort as Float) > 65534 ? 65534 : (effort as Float).toNumber());
-                    (mRepSecondsField as FitContributor.Field).setData(
-                        duration > 65534 ? 65534 : duration);
-                    (mRepSourceField as FitContributor.Field).setData(mode);
-                    (mRepEventField as FitContributor.Field).setData(1);
-                    // Negative 32768 means HRR is pending or unavailable.
-                    (mRepHrrField as FitContributor.Field).setData(-32768);
-                    if (mRepActiveHrrField != null) {
-                        (mRepActiveHrrField as FitContributor.Field).setData(-32768);
-                    }
-                }
+        if(!ready || extra.size()==0){return;}
+        try {
+            if(intervals.completionId>lastCompletion && intervals.lastSeconds>0){
+                lastCompletion=intervals.completionId;
+                // Never wrap: FIT IDs and total count must remain unambiguous.
+                if(mRepCounter>=65534){ready=false;return;}
+                mRepCounter+=1;
+                var duration=intervals.lastSeconds;
+                var valid=intervals.lastValidPower;
+                var quality=(intervals.lastInterrupted ? 1 : 0) |
+                    (valid<duration ? 2 : 0) | (duration>=240 ? 4 : 0) |
+                    (duration>65534 ? 8 : 0);
+                extra[0].setData(mRepCounter);
+                extra[1].setData(intervals.lastMean==null ? 65535 : (intervals.lastMean as Float).toNumber());
+                extra[2].setData(duration>65534 ? 65534 : duration);
+                extra[3].setData(intervals.source.equals("AUTO") ? 1 : intervals.source.equals("MANUAL") ? 2 : 3);
+                extra[4].setData(-32768);extra[6].setData(-32768);
+                extra[5].setData(1);extra[10].setData(mRepCounter);
+                extra[11].setData(quality);extra[12].setData(valid>65534 ? 65534 : valid);
+                extra[13].setData(65535);extra[14].setData(intervals.lastEndSeconds);
             }
-        }
-        if (recovery.delta != null) {
-            var completedHrr = recovery.delta as Float;
-            var hrrMarker = mLastEffortMarker + ":" + completedHrr.format("%.2f");
-            if (!hrrMarker.equals(mLastHrrMarker)) {
-                mLastHrrMarker = hrrMarker;
-                if (mLastHrr60Field != null) {
-                    (mLastHrr60Field as FitContributor.Field).setData(completedHrr);
-                }
-                if (mPendingHrrRep != 0 && mRepEventField != null) {
-                    (mRepIdField as FitContributor.Field).setData(mPendingHrrRep);
-                    (mRepHrrField as FitContributor.Field).setData(
-                        completedHrr.toNumber());
-                    (mRepEventField as FitContributor.Field).setData(2);
-                    // Keep the repetition association until active HRR is saved.
-                }
+            if(mRepCounter>0 && recovery.parentId==lastCompletion){
+                if(recovery.delta!=null){extra[4].setData((recovery.delta as Float).toNumber());extra[5].setData(2);}
+                if(recovery.activeDelta!=null){extra[6].setData((recovery.activeDelta as Float).toNumber());extra[5].setData(3);}
+                var watts=recovery.meanRecoveryPower();
+                if(watts!=null){extra[13].setData(watts.toNumber());}
             }
-        }
-        if (recovery.activeDelta != null) {
-            var activeHrr = recovery.activeDelta as Float;
-            var activeMarker = mLastEffortMarker + ":" + activeHrr.format("%.2f");
-            if (!activeMarker.equals(mLastActiveHrrMarker)) {
-                mLastActiveHrrMarker = activeMarker;
-                if (mLastActiveHrrField != null) {
-                    (mLastActiveHrrField as FitContributor.Field).setData(activeHrr);
-                }
-                if (mPendingHrrRep != 0 && mRepEventField != null && mRepActiveHrrField != null) {
-                    (mRepIdField as FitContributor.Field).setData(mPendingHrrRep);
-                    (mRepActiveHrrField as FitContributor.Field).setData(activeHrr.toNumber());
-                    (mRepEventField as FitContributor.Field).setData(3);
-                }
-            }
-        }
+        } catch(e){ready=false;}
     }
 
     // Called every second after the engine has taken the sample.
     function onSecond(engine as DriftEngine, cadence as Number?, isTimerRunning as Boolean) as Void {
-        if (isTimerRunning && cadence != null && cadence > 0) {
+        if (isTimerRunning && cadence != null && cadence > 0 && cadence < 255) {
             // Pedalling cadence only: coasting would pull the average down.
             mCadenceSum += cadence;
             mCadenceSeconds += 1;
@@ -240,31 +195,31 @@ class ProductionRecorder {
             return;
         }
 
+        try {
         var history = engine.getHistory();
         var size = history.getSize();
         var efficiency = history.getLatest();
         (mEfficiencyField as FitContributor.Field).setData(efficiency == null ? 0.0f : efficiency);
         (mSteadyField as FitContributor.Field).setData(
             size > 0 && history.isSteady(size - 1) ? 1 : 0);
-        (mCadenceField as FitContributor.Field).setData(lastCadence > 255 ? 255 : lastCadence);
+        (mCadenceField as FitContributor.Field).setData(lastCadence > 254 ? 254 : lastCadence);
 
         var state = engine.getState(METRIC_RIDE) as Number;
         (mRideStateField as FitContributor.Field).setData(state);
         (mSessionStateField as FitContributor.Field).setData(state);
         var drift = engine.getDriftPercent(METRIC_RIDE);
-        if (drift != null) {
-            (mRideDriftField as FitContributor.Field).setData(drift);
-            (mSessionDriftField as FitContributor.Field).setData(drift);
-        }
+        (mRideDriftField as FitContributor.Field).setData(drift==null ? UNAVAILABLE : drift);
+        (mSessionDriftField as FitContributor.Field).setData(drift==null ? UNAVAILABLE : drift);
         var powerChange = engine.getPowerChangePercent(METRIC_RIDE);
-        if (powerChange != null) {
-            (mSessionPowerChangeField as FitContributor.Field).setData(powerChange);
+        (mSessionPowerChangeField as FitContributor.Field).setData(powerChange==null ? UNAVAILABLE : powerChange);
+        if(extra.size()>0){
+            extra[8].setData(engine.lastValidDrift==null ? UNAVAILABLE : (engine.lastValidDrift as Float));
+            extra[9].setData(engine.lastValidMinute>65534 ? 65534 : engine.lastValidMinute);
         }
         (mSessionSteadyField as FitContributor.Field).setData(engine.getSteadyPercent());
         var compat = engine.getCompatDriftPercent();
-        if (compat != null) {
-            (mSessionCompatField as FitContributor.Field).setData(compat);
-        }
+        (mSessionCompatField as FitContributor.Field).setData(compat==null ? UNAVAILABLE : compat);
+        } catch(e){ready=false;}
     }
 
     private function resetCadence() as Void {

@@ -50,6 +50,13 @@ def analyze(root,suite=False,months=6):
             save(dest/(key+'_decoded.json'),messages)
             if quality['status']!='unsupported':
                 result.update(compare(samples,suite))
+                from .auto_exp import ExperimentalDetector, ALGORITHM
+                detector=ExperimentalDetector()
+                for sample in samples:
+                    detector.sample(sample['power'],sample['running'])
+                result['auto_exp_offline']=dict(algorithm=ALGORITHM, efforts=detector.events,
+                    discarded_short=len(detector.discards), active_tail=detector.active,
+                    provenance='offline_recalculation')
                 base=result['models']['current']
                 result['filter_differences']={k:minute_diff(base,v) for k,v in result['models'].items() if k!='current'}
         except Exception as exc:

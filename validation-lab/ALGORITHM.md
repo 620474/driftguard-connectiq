@@ -1,3 +1,8 @@
+Current algorithm version: 2. In addition to the historical algorithm below,
+steady requires within-minute positive-power CV <=30%, valid sensor ranges,
+and rejection of the first resumed minute plus three recovery minutes.
+See [v2 contract](../docs/RELIABILITY_V2_RU.md) for exact FIT and timer semantics.
+
 # Source audit / algorithm contract
 
 Source revision: 7d6b5c1123e208ef64e4911a662392cfdf0a9810. Read AGENTS.md, CLAUDE.md, all docs/*.md and requested source/test files. User explicitly authorizes separate lab beyond older CURRENT_TASK scope; production remains untouched.

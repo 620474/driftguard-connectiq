@@ -29,7 +29,7 @@ class Intervals:
                 return
         if not self.seconds:
             return
-        self.last = (self.seconds, self.valid_power, self.power_sum, self.mean, self.interrupted)
+        self.last = (self.seconds, self.valid_power, self.power_sum, self.mean, self.interrupted or self.valid_power != self.seconds)
         self.sequence += 1
         self.seconds = self.valid_power = self.power_sum = 0
         self.interrupted = False

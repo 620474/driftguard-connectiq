@@ -7,7 +7,8 @@ def record(rep_id, event, power=260, seconds=180, source=1, hrr=-32768):
         'timestamp': f'2026-10-31T12:00:{rep_id % 60:02d}',
         'dg_rep_id': rep_id, 'dg_rep_evt': event,
         'dg_rep_w': power, 'dg_rep_s': seconds,
-        'dg_rep_src': source, 'dg_rep_hrr': hrr
+        'dg_rep_src': source, 'dg_rep_hrr': hrr if event != 3 else 22,
+        'dg_rep_hrr_active': hrr if event == 3 else -32768
     }}
 
 

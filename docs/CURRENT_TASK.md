@@ -1,3 +1,14 @@
+# Audit reliability fixes — 2026-11-01
+
+Owner requests all audit fixes in one local commit; no push or release.
+Scope: calibration allocation, steady variability/resume/sensor checks, sustained
+AUTO and low-baseline tails, completion identity, FIT quality/HRR provenance,
+source-faithful offline replay and data-driven research reporting.
+Contract and known loss of final VALID availability: RELIABILITY_V2_RU.md.
+Build both variants, run regression and private archive replay, inspect diff.
+
+---
+
 # Enable experimental local surge detector — 2026-10-31
 
 Owner explicitly requested enabling it on Edge. Enable for AUTO sessions; keep

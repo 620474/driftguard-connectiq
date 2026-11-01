@@ -1,0 +1,81 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "f5c48ef9063bb411ad6a36088ca489a73659e62e",
+  "branch": "fix/audit-reliability",
+  "python_tests": {
+    "passed": 90,
+    "failed": 0
+  },
+  "production_simulator": {
+    "passed": 60,
+    "failed": 0,
+    "errors": 0
+  },
+  "calibration_simulator": {
+    "passed": 55,
+    "failed": 0,
+    "errors": 0
+  },
+  "real_replay": {
+    "cases": 8,
+    "samples": 14645,
+    "checkpoints": 509
+  },
+  "sdk": "9.3.0",
+  "device_simulator": "Edge 1050",
+  "compiler_type_check_level": 3,
+  "builds": [
+    "production ordinary",
+    "production tests + private replay",
+    "calibration ordinary",
+    "calibration tests"
+  ],
+  "fit_runtime_initialization": {
+    "production": true,
+    "calibration": true,
+    "method": "normal-app diagnostic wrapper; unchanged recorder/engines"
+  },
+  "fit_bytes": {
+    "production": {
+      "record": 32,
+      "session": 23
+    },
+    "calibration": {
+      "record": 32,
+      "session": 24
+    }
+  },
+  "algorithm_version": 2,
+  "config_crc32": 3866173107,
+  "archive": {
+    "files": 123,
+    "baseline": "f5c48ef9063bb411ad6a36088ca489a73659e62e",
+    "kind": "offline replay; not recorded app values",
+    "ride": {
+      "COLLECTING": 10,
+      "WARMUP": 14,
+      "NOT_STEADY": 99
+    },
+    "last60": {
+      "COLLECTING": 18,
+      "WARMUP": 14,
+      "NOT_STEADY": 91
+    },
+    "totals": {
+      "old_steady": 2461,
+      "steady": 1291,
+      "old_auto": 2111,
+      "auto": 1547,
+      "sustained": 42,
+      "partial": 10,
+      "active_tail": 0
+    }
+  },
+  "limits": [
+    "No physical Edge test or physical FIT round trip",
+    "Strict CV/resume gates eliminate final VALID in this archive",
+    "No independently labelled precision/recall",
+    "Window screenshot capture timed out; rendering smoke tests used",
+    "Python HTTP mock ResourceWarnings remain; tests pass"
+  ]
+}

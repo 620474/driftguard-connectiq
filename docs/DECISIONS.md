@@ -1,3 +1,13 @@
+## 2026-11-01 — audit reliability contract v2
+
+Owner authorized one commit of audit improvements. Use separate production and
+calibration field allocations; explicit coverage/identity/recovery provenance;
+CV <=30% and resume rejection as conservative engineering guards. Preserve
+long AUTO segments with a sustained flag; 20-second minimum still applies.
+These are not validated physiological thresholds. Archive replay loses all
+final VALID results, so do not claim improved accuracy or release readiness.
+See [complete contract and caveats](RELIABILITY_V2_RU.md).
+
 # Decision Log
 
 ## 2026-09-24 — Start with a narrow Connect IQ Data Field

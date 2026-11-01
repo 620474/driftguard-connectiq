@@ -8,6 +8,7 @@ class IntervalEngine {
     var validPower as Number = 0;
     var powerSum as Float = 0.0f;
     var lastSeconds as Number = 0;
+    var lastValidPower as Number = 0;
     var lastMean as Float? = null;
     var paused as Boolean = false;
     var interrupted as Boolean = false;
@@ -17,7 +18,7 @@ class IntervalEngine {
 
     function reset() as Void {
         source = "NONE"; sequence = 0; seconds = 0; validPower = 0;
-        powerSum = 0.0f; lastSeconds = 0; lastMean = null;
+        powerSum = 0.0f; lastSeconds = 0; lastValidPower=0; lastMean = null;
         paused = false; interrupted = false; lastInterrupted = false;
     }
 
@@ -36,7 +37,8 @@ class IntervalEngine {
         }
         // Duplicate boundaries before a running sample are idempotent.
         if (seconds == 0) { return; }
-        lastSeconds = seconds; lastMean = meanPower(); lastInterrupted = interrupted;
+        lastValidPower=validPower;
+        lastSeconds = seconds; lastMean = meanPower(); lastInterrupted = interrupted || validPower!=seconds;
         sequence += 1; seconds = 0; validPower = 0; powerSum = 0.0f;
         interrupted = false;
     }

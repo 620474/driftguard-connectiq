@@ -145,7 +145,10 @@ def audit(root):
                 selection_delta_pp=selected-result[0] if selected is not None else None,
                 reasons=dict(Counter(m['reason'] for m in block))))
         sessions=[m['fields'] for m in messages if m['type']=='session']
-        fields={k:v for session in sessions for k,v in session.items() if k.startswith('dg_')}
+        from driftlab.calibration_schema import PRODUCTION_APP_ID, canonical_app_id
+        fields={d['name']:d.get('value') for message in messages if message['type']=='session'
+                for d in message.get('developer_fields', [])
+                if d['name'].startswith('dg_') and canonical_app_id(d.get('application_id'))==PRODUCTION_APP_ID}
         if fields:
             expected={'WARMUP':0,'COLLECTING':1,'NOT_STEADY':2,'POWER_CHANGED':3,'VALID':4}[current['summary']['ride']['state']]
             recorded_state=fields.get('dg_ride_state_final')

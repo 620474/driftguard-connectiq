@@ -1,3 +1,10 @@
+## 2026-11-01 — audit reliability candidate
+
+Implemented schema/algorithm v2; see [contract](RELIABILITY_V2_RU.md).
+This is a local candidate, not a published release. Strict CV/resume gates
+produce zero final VALID metrics on the 123-FIT audit cohort; this limitation
+must remain visible when evaluating the candidate. Device validation outstanding.
+
 # INTERVALS HR and raw HRR60 — 2026-10-31
 
 Current HR and gated signed HRR60 added by owner request. AUTO end is backdated

@@ -74,7 +74,9 @@ class DriftGuardView extends WatchUi.DataField {
 
     function compute(info as Activity.Info) as Void {
         var power = info.currentPower;
+        if(power!=null && (power<0 || power>10000)){power=null;}
         var currentHeartRate = info.currentHeartRate;
+        if(currentHeartRate!=null && (currentHeartRate<=0 || currentHeartRate>300)){currentHeartRate=null;}
 
         // Replace every value on every sample so missing sensors cannot leave stale text.
         powerText = "--";
@@ -114,6 +116,7 @@ class DriftGuardView extends WatchUi.DataField {
             if (priorSequence!=intervals.automatic.sequence && intervals.automatic.active) { recovery.cancel("NEW EFFORT"); }
             if (priorEnd!=intervals.automatic.detectedEnd && !intervals.lastInterrupted && !intervals.automatic.active) {
                 recovery.begin(5,intervals.lastMean,intervals.lastSeconds);
+                recovery.parentId=intervals.completionId;
             }
         }
         recorder.onSecond(driftEngine, info.currentCadence, isTimerRunning);
@@ -152,7 +155,7 @@ class DriftGuardView extends WatchUi.DataField {
         var oldValid=intervals.validPower;
         intervals.boundary(workout);
         if (explicitSource && oldSeconds>0 && intervals.sequence!=oldSequence) {
-            if (oldValid==oldSeconds) { recovery.begin(0,intervals.lastMean,intervals.lastSeconds); }
+            if (oldValid==oldSeconds && !intervals.lastInterrupted) { recovery.begin(0,intervals.lastMean,intervals.lastSeconds); recovery.parentId=intervals.completionId; }
             else { recovery.cancel("POWER MISSING"); }
         } else if (!explicitSource) { recovery.cancel("NEW SEGMENT"); }
         recorder.onIntervals(intervals, recovery);
@@ -276,7 +279,7 @@ class DriftGuardView extends WatchUi.DataField {
         var autoMode=intervals.source.equals("AUTO");
         var waiting=autoMode ? !intervals.automatic.active : intervals.sequence==0;
         var title="INTERVALS / " + (intervals.source.equals("AUTO") && intervals.automatic.experimental ? "AUTO EXP" : intervals.source);
-        if (autoMode && intervals.automatic.active && intervals.seconds<10) { title="CONFIRMING"; }
+        if (autoMode && intervals.automatic.active && intervals.seconds<20) { title="CONFIRMING"; }
         if (compact) {
             var heading=title;
             if (waiting) {
@@ -290,7 +293,7 @@ class DriftGuardView extends WatchUi.DataField {
             var current=intervals.meanPower();
             var middle=current==null ? "-- W" : current.format("%.0f") + "W " + intervals.seconds.format("%d") + "s";
             var previous=intervals.lastMean;
-            if (waiting && previous!=null) { middle="LAST " + previous.format("%.0f") + "W"; }
+            if (waiting && previous!=null) { middle="LAST " + previous.format("%.0f") + "W" + (intervals.lastInterrupted ? " *" : ""); }
             drawLabel(dc,x,h*0.48,middle,Graphics.TEXT_JUSTIFY_CENTER);
             drawLabel(dc,x,h*0.80,"HR" + heartRateText + " " + recovery.inlineText(),Graphics.TEXT_JUSTIFY_CENTER);
             return;
@@ -345,7 +348,8 @@ class DriftGuardView extends WatchUi.DataField {
             dc.drawText(x,h*(large ? FULL_HERO_Y : 0.18),Graphics.FONT_NUMBER_HOT,mean.format("%.0f"),align);
             drawLabel(dc,x,h*(large ? 0.17 : 0.255),"AVG POWER / W",Graphics.TEXT_JUSTIFY_CENTER);
             var caption=intervalDurationText(intervals.seconds);
-            if (autoMode && intervals.seconds<10) { caption="CONFIRMING / " + caption; }
+            if(autoMode && intervals.seconds>=240){caption="SUSTAINED / "+caption;}
+            if (autoMode && intervals.seconds<20) { caption="CONFIRMING / " + caption; }
             drawPill(dc,x,h*(large ? FULL_STATUS_Y : 0.315),caption,mMuted);
         } else {
             var status=intervals.paused ? "PAUSED" : "WAITING";
@@ -371,20 +375,21 @@ class DriftGuardView extends WatchUi.DataField {
         var labelsY=h*(large ? FULL_SUMMARY_LABEL_Y : 0.39);
         var valuesY=h*(large ? FULL_SUMMARY_VALUE_Y : 0.425);
         dc.drawText(w/4,labelsY,labelFont,"LAST EFFORT",align);
-        dc.drawText(w*3/4,labelsY,labelFont,"HRR60",align);
+        dc.drawText(w*3/4,labelsY,labelFont,recovery.delta==null && recovery.activeDelta!=null ? "ACTIVE HRR60" : "HRR60",align);
         var previous=intervals.lastMean;
         var last=previous==null ? "--" : previous.format("%.0f") + " W";
+        if(intervals.lastInterrupted){last+=" *";}
         dc.setColor(mForeground,Graphics.COLOR_TRANSPARENT);
         dc.drawText(w/4,valuesY,valueFont,last,align);
-        var hrValue=recovery.delta;
+        var hrValue=recovery.delta!=null ? recovery.delta : recovery.activeDelta;
         var response=hrValue==null ? recovery.reason : hrValue.format("%+.0f");
-        if (recovery.collecting) { response=recovery.elapsed.format("%d") + " / 60 S"; }
+        if (recovery.collecting || recovery.activeCollecting) { response=recovery.elapsed.format("%d") + " / 60 S"; }
         var responseFont=dc.getTextWidthInPixels(response,valueFont)<=w/2-margin ? valueFont : labelFont;
         dc.drawText(w*3/4,valuesY,responseFont,response,align);
         if (large) {
             dc.setColor(mMuted,Graphics.COLOR_TRANSPARENT);
-            dc.drawText(w/4,h*0.35,labelFont,previous==null ? "--:--" : intervalDurationText(intervals.lastSeconds),align);
-            dc.drawText(w*3/4,h*0.35,labelFont,"BPM / 60 S",align);
+            dc.drawText(w/4,h*0.35,labelFont,intervals.lastSeconds==0 ? "--:--" : (intervals.lastInterrupted ? "PARTIAL " : "") + intervalDurationText(intervals.lastSeconds),align);
+            dc.drawText(w*3/4,h*0.35,labelFont,recovery.meanRecoveryPower()==null ? "BPM / 60 S" : "REC "+(recovery.meanRecoveryPower() as Float).format("%.0f")+" W",align);
         }
     }
     private function drawIntervalCharts(dc as Graphics.Dc) as Void {

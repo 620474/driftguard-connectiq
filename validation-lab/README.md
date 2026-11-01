@@ -1,3 +1,13 @@
+## Reliability v2
+
+Current contracts and limits: [Russian specification](../docs/RELIABILITY_V2_RU.md).
+Analysis now includes `auto_exp_offline` (current AUTO EXP v2) separately from
+`fit_repetitions` (recorded fields with provenance). `auto_efforts` is the older
+candidate experiment, not a replay of current production. Research rendering:
+`python render_research.py --data <analysis-root>`; all numbers come from its
+`research/research.json`, including empty cohorts. Run tests with
+`python -m unittest discover -s tests -v`.
+
 # DriftGuard Validation Lab
 
 Локальный исследовательский инструмент Python 3.12+. Production Monkey C не изменён.

@@ -1254,11 +1254,11 @@ function liveAutoSourcePriority(logger as Test.Logger) as Boolean {
 }
 
 (:test)
-function adaptiveSteadyPlateauIsNotEffort(logger as Test.Logger) as Boolean {
+function adaptiveSustainedPlateauRemainsActive(logger as Test.Logger) as Boolean {
     var e=new AutoEffortEngine(); e.experimental=true;
     for (var i=0;i<60;i+=1) { e.addSample(100,true); }
     for (var j=0;j<600;j+=1) { e.addSample(200,true); }
-    Test.assertEqual(e.active,false);
+    Test.assertEqual(e.active,true);
     Test.assertEqual(e.detectedEnd,0);
     return true;
 }
@@ -1275,11 +1275,12 @@ function adaptiveShortSurgeStillRecorded(logger as Test.Logger) as Boolean {
 }
 
 (:test)
-function adaptiveLongUniformEffortIsSuppressed(logger as Test.Logger) as Boolean {
+function adaptiveLongUniformEffortIsSaved(logger as Test.Logger) as Boolean {
     var e=new AutoEffortEngine(); e.experimental=true;
     for (var i=0;i<60;i+=1) { e.addSample(100,true); }
     for (var j=0;j<360;j+=1) { e.addSample(200,true); }
+    for(var k=0;k<5;k+=1){e.addSample(100,true);}
     Test.assertEqual(e.active,false);
-    Test.assertEqual(e.detectedEnd,0);
+    Test.assertEqual(e.lastSeconds,360);
     return true;
 }

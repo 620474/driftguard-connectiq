@@ -7,6 +7,9 @@ class HeartRecovery {
     private var next as Number = 0;
     private var count as Number = 0;
     var elapsed as Number = 0;
+    var parentId as Number = 0;
+    var recoveryPowerSum as Float = 0.0f;
+    function meanRecoveryPower() as Float? {return elapsed==60 ? recoveryPowerSum/60 : null;}
     var endHr as Float? = null;
     var delta as Float? = null;
     var activeDelta as Float? = null;
@@ -17,7 +20,7 @@ class HeartRecovery {
     private var limit as Float = 0.0f;
     function initialize() { hr=new [8] as Array<Number>; power=new [8] as Array<Number>; reset(); }
     function reset() as Void { next=0; count=0; endHr=null; cancel("NEED EFFORT"); }
-    function cancel(why as String) as Void { collecting=false; activeCollecting=false; delta=null; activeDelta=null; elapsed=0; reason=why; }
+    function cancel(why as String) as Void { parentId=0;recoveryPowerSum=0.0f;collecting=false; activeCollecting=false; delta=null; activeDelta=null; elapsed=0; reason=why; }
     private function at(values as Array<Number>, offset as Number) as Number {
         return values[(next-1-offset+16)%8];
     }
@@ -43,6 +46,7 @@ class HeartRecovery {
             if (!collecting) { reason="ACTIVE POWER HIGH"; }
         }
         if (!collecting && !activeCollecting) { return; }
+        recoveryPowerSum+=at(power,0);
         elapsed+=1;
         if (elapsed==60) {
             var terminal=mean(0);
@@ -72,18 +76,19 @@ class HeartRecovery {
             if (at(power,i)>activeLimit) { activeCollecting=false;reason="ACTIVE POWER HIGH"; }
         }
         if (!collecting && !activeCollecting) { return; }
+        for(var j=0;j<delay;j+=1){recoveryPowerSum+=at(power,j);}
         elapsed=delay;reason="COLLECTING";
     }
     function inlineText() as String {
         if (delta!=null) { return "R60" + delta.format("%+.0f"); }
         if (activeDelta!=null) { return "A60" + activeDelta.format("%+.0f"); }
-        if (collecting) { return "R" + elapsed.format("%d") + "/60"; }
+        if (collecting || activeCollecting) { return "R" + elapsed.format("%d") + "/60"; }
         return "R--";
     }
     function compactText() as String {
         if (delta!=null) { return "HRR60 " + delta.format("%+.0f"); }
         if (activeDelta!=null) { return "AHRR60 " + activeDelta.format("%+.0f"); }
-        if (collecting) { return "HRR " + elapsed.format("%d") + "/60"; }
+        if (collecting || activeCollecting) { return "HRR " + elapsed.format("%d") + "/60"; }
         if (reason.equals("HR MISSING")) { return "HRR -- / HR"; }
         if (reason.equals("POWER MISSING") || reason.equals("POWER HIGH")) { return "HRR -- / PWR"; }
         return "HRR --";
@@ -91,7 +96,7 @@ class HeartRecovery {
     function text() as String {
         if (delta!=null) { return "HRR60 " + ((delta as Float)>=0 ? "+" : "") + delta.format("%.0f") + " bpm"; }
         if (activeDelta!=null) { return "ACTIVE HRR60 " + ((activeDelta as Float)>=0 ? "+" : "") + activeDelta.format("%.0f") + " bpm"; }
-        if (collecting) { return "HRR60 " + elapsed.format("%d") + "/60 s"; }
+        if (collecting || activeCollecting) { return "HRR60 " + elapsed.format("%d") + "/60 s"; }
         return "HRR60 -- / " + reason;
     }
 }

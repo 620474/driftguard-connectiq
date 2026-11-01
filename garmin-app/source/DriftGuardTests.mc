@@ -167,12 +167,12 @@ function driftExcludesClimbAndHeartRateRecovery(logger as Test.Logger) as Boolea
 }
 
 (:test)
-function driftIgnoresPausedTimer(logger as Test.Logger) as Boolean {
+function driftSkipsPauseAndGatesResume(logger as Test.Logger) as Boolean {
     var engine = new DriftEngine(0);
     addMinutes(engine, 20, 180, 90);
-    // A long cafe stop with the timer paused is neither valid nor invalid data.
+    // Paused seconds are skipped; the joined minute and next three are rejected.
     addSeconds(engine, 30 * 60, 0, 90, false);
-    addMinutes(engine, 20, 180, 100);
+    addMinutes(engine, 24, 180, 100);
     Test.assertEqual(engine.getState(METRIC_RIDE), DRIFT_VALID);
     Test.assertEqual((engine.getDriftPercent(METRIC_RIDE) as Float).format("%.1f"), "10.0");
     Test.assertEqual(engine.getSteadySeconds(), 40 * 60);
@@ -458,7 +458,7 @@ function calibrationBoundaries(logger as Test.Logger) as Boolean {
     Test.assertEqual(e.calibrationMinute[0], 60);
     Test.assertEqual(e.calibrationMinute[1], 12000);
     Test.assertEqual(e.calibrationMinute[2], 6000);
-    Test.assertEqual(e.calibrationMinute[6], 4);
+    Test.assertEqual(e.calibrationMinute[6], 2); // Joined resume minute is rejected.
     addSeconds(e, 1, 200, 100, true);
     Test.assertEqual(e.getMinutes(), 1);
     e.reset();

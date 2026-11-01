@@ -62,6 +62,22 @@ class CalibrationTests(unittest.TestCase):
         s,m=fixture();m.insert(2,m[1])
         self.assertEqual(compare(s,m)['compared_minutes'],2)
         self.assertEqual(compare(s,m)['status'],'matched_candidate')
+    def test_post_warmup_pause_is_seen_by_comparator(self):
+        samples,messages=fixture(21*60+10)
+        for i,sample in enumerate(samples):
+            sample['running']=not 930 <= i < 940
+        active=[s for s in samples if s['running']]
+        messages=[m for m in messages if m['type']!='record']
+        session=messages[0]['fields']
+        session.update(dg_ride_state_final=1,dg_steady_percent=33)
+        for minute in range(1,22):
+            reason=0 if minute<=15 else 2 if minute==16 else 3 if minute<=19 else 4
+            values=(minute*60,60,reason,12000,6000,60,12000,6000,int(reason==4),0 if minute<15 else 1)
+            messages.append(dict(type='record',fields=dict(zip(FIELDS,values),
+                dg_ef=2.,dg_ride_drift=None,dg_cadence=90,dg_minute_seq=minute,
+                timestamp=active[minute*60-1]['timestamp'])))
+        self.assertEqual(compare(samples,messages)['status'],'matched_candidate')
+
     def test_wrong_boundary(self):
         s,m=fixture();m[1]['fields']['timestamp']=s[60]['timestamp']
         self.assertEqual(compare(s,m)['status'],'mismatch')

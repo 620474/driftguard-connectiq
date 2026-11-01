@@ -51,6 +51,8 @@ class Config:
     valid: int = 48
     mismatch: float = 5.
     median: str = 'current'
+    power_cv: float = 0.30
+    resume_gate: bool = True
 
 
 def band_for(d):
@@ -72,12 +74,20 @@ class Engine:
         self.hist = [0]*150
         self.recovery = self.post = self.steady = self.steady_seconds = 0
         self.pending = []
+        self.pause_seen = False
+        self.interrupted = False
         self.bands = [None,None]
         self.result = self.evaluate()
 
     def add(self, power, hr, running=True):
         if not running:
+            if self.minutes or self.pending:
+                self.pause_seen = True
             return
+        if self.pause_seen and self.c.resume_gate:
+            self.recovery = self.c.recovery
+            self.interrupted = True
+        self.pause_seen = False
         self.pending.append((power,hr))
         if len(self.pending) == 60:
             self.commit()
@@ -94,8 +104,8 @@ class Engine:
         return 0
 
     def commit(self):
-        good = [(p,h) for p,h in self.pending if p is not None and p>0 and h is not None and h>0]
-        with_hr = [(p,h) for p,h in self.pending if h is not None and h>0]
+        good = [(p,h) for p,h in self.pending if p is not None and 0<p<=10000 and h is not None and 0<h<=300]
+        with_hr = [(p,h) for p,h in self.pending if h is not None and 0<h<=300]
         ps, hs, n = sum(p for p,h in good), sum(h for p,h in good), len(good)
         ref = None
         reason = 'warm-up'
@@ -119,7 +129,11 @@ class Engine:
                     pool = self.powers[:1]
                 ref = self.median(pool)
                 inband = p*100 >= ref*(100-self.c.band) and p*100 <= ref*(100+self.c.band)
+                stable = sum(p*p for p,h in good)/n <= (ps/n)**2 * (1+self.c.power_cv**2)
+                inband = inband and stable and not self.interrupted
                 reason = 'power out of band'
+                if not stable: reason = 'variable power'
+                if self.interrupted: reason = 'timer resume'
             if not inband:
                 self.recovery = self.c.recovery
             elif self.recovery:
@@ -132,11 +146,12 @@ class Engine:
             self.ride.add((ps,hs,n) if steady else (0,0,0))
         self.history.append((ps,hs,n if steady else 0))
         self.history = self.history[-60:]
-        self.compat.add((sum(p if p is not None and p>0 else 0 for p,h in with_hr),sum(h for p,h in with_hr),len(with_hr)))
+        self.compat.add((sum(p if p is not None and 0<p<=10000 else 0 for p,h in with_hr),sum(h for p,h in with_hr),len(with_hr)))
         self.minutes.append(dict(minute=len(self.minutes)+1,power=ps/n if n else None,hr=hs/n if n else None,
             valid_seconds=n,reference_median=ref,steady=steady,reason=reason,recovery_before=before,
             recovery_after=self.recovery,power_sum=ps,hr_sum=hs,power_int=ps//n if n>=self.c.valid and self.post else None))
         self.pending = []
+        self.interrupted = False
         self.result = self.evaluate()
         self.minutes[-1]['ride_drift'] = self.result['ride']['drift']
         self.minutes[-1]['ride_state'] = self.result['ride']['state']

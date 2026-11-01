@@ -69,6 +69,37 @@ def extract_repetitions(messages):
     by_id = {}
     errors = []
     last_event = None
+    provenance = 'unverified'
+    from .calibration_schema import PRODUCTION_APP_ID, canonical_app_id
+    metadata_present = any(m.get('developer_fields') for m in messages)
+    verified = []
+    if metadata_present:
+        if any(m.get('type') == 'developer_identity_conflict' for m in messages):
+            return dict(repetitions=[], issues=['ambiguous developer identity'], provenance='unverified')
+        for message in messages:
+            fields = {k:v for k,v in message.get('fields', {}).items() if not k.startswith('dg_')}
+            seen = set()
+            ambiguous = False
+            for field in message.get('developer_fields', []):
+                if canonical_app_id(field.get('application_id')) == PRODUCTION_APP_ID:
+                    if field['name'] in seen:
+                        ambiguous = True
+                    seen.add(field['name'])
+                    fields[field['name']] = field.get('value')
+            if ambiguous:
+                errors.append('ambiguous duplicate production developer fields')
+                continue
+            verified.append(dict(type=message.get('type'), fields=fields))
+        if any('dg_rep_id' in m['fields'] for m in verified):
+            provenance = 'production_application_id'
+        elif any('dg_rep_id' in m.get('fields', {}) for m in messages):
+            errors.append('repetition fields have unverified application identity; not attributed to DriftGuard')
+        messages = verified
+    sessions = [m.get('fields', {}) for m in messages if m.get('type') == 'session']
+    versions = {m['dg_schema_version'] for m in sessions if 'dg_schema_version' in m}
+    schema = next(iter(versions)) if len(versions) == 1 else None
+    if versions and (len(versions) != 1 or schema != 2):
+        return dict(repetitions=[], issues=errors+['unsupported repetition schema'], provenance=provenance)
     for message in messages:
         if message.get('type') != 'record':
             continue
@@ -84,16 +115,27 @@ def extract_repetitions(messages):
         if event == 1:
             duration = values.get('dg_rep_s')
             power = values.get('dg_rep_w')
+            quality = values.get('dg_rep_quality')
+            valid = values.get('dg_rep_valid_s')
+            if schema == 2 and not (isinstance(quality,int) and 0 <= quality <= 15 and
+                    isinstance(valid,int) and isinstance(duration,int) and 0 <= valid <= duration and
+                    isinstance(values.get('dg_rep_end_s'),int) and
+                    (valid == duration or quality & 2)):
+                errors.append(f'invalid effort quality: {rep_id}')
+                continue
             source = values.get('dg_rep_src')
             if not (isinstance(duration, int) and duration > 0 and
-                    isinstance(power, (int, float)) and power >= 0 and source in (1, 2, 3)):
+                    (isinstance(power, (int, float)) and 0 <= power <= 10000 or
+                     schema == 2 and power is None and valid == 0) and source in (1, 2, 3)):
                 errors.append(f'invalid effort fields: {rep_id}')
                 continue
             if rep_id in by_id:
                 errors.append(f'duplicate/wrapped repetition id: {rep_id}')
                 continue
             item = dict(id=rep_id, time=values.get('timestamp'), duration_s=duration,
-                        power_w=power, source={1:'AUTO',2:'MANUAL',3:'WORKOUT'}[source],
+                        power_w=power, schema_version=schema, quality_flags=values.get("dg_rep_quality"),
+                        valid_power_s=values.get("dg_rep_valid_s"), end_running_s=values.get("dg_rep_end_s"),
+                        recovery_power_w=None, source={1:'AUTO',2:'MANUAL',3:'WORKOUT'}[source],
                         hrr60_bpm=None, active_hrr60_bpm=None)
             reps.append(item)
             by_id[rep_id] = item
@@ -104,6 +146,7 @@ def extract_repetitions(messages):
                 errors.append(f'HRR without effort: {rep_id}')
             elif isinstance(hrr, (int, float)) and -300 <= hrr <= 300:
                 item['hrr60_bpm' if event == 2 else 'active_hrr60_bpm'] = hrr
+                item['recovery_power_w'] = values.get('dg_rep_recovery_w')
                 if event == 3:
                     strict = values.get('dg_rep_hrr')
                     if isinstance(strict, (int, float)) and -300 <= strict <= 300:
@@ -113,10 +156,16 @@ def extract_repetitions(messages):
         else:
             errors.append(f'unknown repetition event: {event}')
     ids = [rep['id'] for rep in reps]
+    if ids and ids[0] != 1:
+        errors.append(f'possible missed initial effort(s): first id {ids[0]}')
     for previous, current in zip(ids, ids[1:]):
         if current != previous + 1 and not (previous == 65534 and current == 1):
             errors.append(f'possible missed effort(s): {previous} -> {current}')
-    return dict(repetitions=reps, issues=errors)
+    totals = [m['dg_rep_count'] for m in sessions if isinstance(m.get('dg_rep_count'), int)]
+    if totals and max(totals) != len(reps):
+        errors.append(f'session reports {max(totals)} efforts; recovered {len(reps)}')
+    return dict(repetitions=reps, issues=errors, provenance=provenance,
+                availability='present' if reps else 'unavailable')
 
 
 def normalize(records, events):

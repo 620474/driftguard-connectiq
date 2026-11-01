@@ -1,3 +1,6 @@
+> Актуальный контракт v2 (2026-11-01): [RELIABILITY_V2_RU.md](RELIABILITY_V2_RU.md).
+> Описания ниже относятся к предыдущим этапам и схемам, если явно не указано иначе.
+
 # FIT summary and offline progress — experimental
 
 This change adds **session-only** developer fields to the existing FIT recorder. No extra RECORD fields were introduced; the existing per-minute DRIFT contract is unchanged.
