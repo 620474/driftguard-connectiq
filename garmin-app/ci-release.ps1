@@ -16,13 +16,11 @@ try {
     $profile = $env:GARMIN_EDGE1050_PROFILE_1 + $env:GARMIN_EDGE1050_PROFILE_2
     [IO.File]::WriteAllBytes($profileZip,[Convert]::FromBase64String($profile))
     Expand-Archive -LiteralPath $profileZip -DestinationPath (Join-Path $env:APPDATA 'Garmin/ConnectIQ') -Force
-    # The Windows GitHub-hosted runner runs without an interactive desktop.
-    # Garmin's GUI simulator/MonkeyDoDeux hangs there without returning results;
-    # do not claim simulator tests have passed or silently treat a hang as success.
-    # Python tests are a mandatory gate in the Release workflow, and the
-    # signed production Edge 1050 build is checked below.
-    Write-Warning 'Garmin simulator tests NOT RUN in hosted release CI (requires interactive Windows session).'
-    Write-Warning 'Run garmin-app/test.ps1 locally or on an interactive Windows runner before device rollout.'
+    # The compiler secret alone lacks the simulator profile/assets and fonts.
+    # Fail before launching the GUI if the private runtime bundle is incomplete.
+    python "$PSScriptRoot/install-simulator-profile.py"
+    if ($LASTEXITCODE -ne 0) { throw 'Simulator runtime provisioning failed' }
+    & "$PSScriptRoot/test.ps1" -Sdk $Sdk -Key $keyPath -TimeoutSeconds 90
     & "$PSScriptRoot/build.ps1" -Sdk $Sdk -Key $keyPath
     if ($LASTEXITCODE -ne 0) { throw 'Production compiler failed' }
     $binary = Join-Path $PSScriptRoot 'bin/DriftGuard.prg'

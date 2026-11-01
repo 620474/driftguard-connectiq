@@ -17,6 +17,7 @@ permissions:
 jobs:
   release:
     name: Build Edge 1050 and publish release
+    environment: garmin-simulator-ww
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -58,12 +59,54 @@ jobs:
       - name: Build signed application
         shell: pwsh
         env:
+          GARMIN_SIMULATOR_MANIFEST: ${{ secrets.GARMIN_SIMULATOR_MANIFEST }}
+          GARMIN_SIMULATOR_01: ${{ secrets.GARMIN_SIMULATOR_01 }}
+          GARMIN_SIMULATOR_02: ${{ secrets.GARMIN_SIMULATOR_02 }}
+          GARMIN_SIMULATOR_03: ${{ secrets.GARMIN_SIMULATOR_03 }}
+          GARMIN_SIMULATOR_04: ${{ secrets.GARMIN_SIMULATOR_04 }}
+          GARMIN_SIMULATOR_05: ${{ secrets.GARMIN_SIMULATOR_05 }}
+          GARMIN_SIMULATOR_06: ${{ secrets.GARMIN_SIMULATOR_06 }}
+          GARMIN_SIMULATOR_07: ${{ secrets.GARMIN_SIMULATOR_07 }}
+          GARMIN_SIMULATOR_08: ${{ secrets.GARMIN_SIMULATOR_08 }}
+          GARMIN_SIMULATOR_09: ${{ secrets.GARMIN_SIMULATOR_09 }}
+          GARMIN_SIMULATOR_10: ${{ secrets.GARMIN_SIMULATOR_10 }}
+          GARMIN_SIMULATOR_11: ${{ secrets.GARMIN_SIMULATOR_11 }}
+          GARMIN_SIMULATOR_12: ${{ secrets.GARMIN_SIMULATOR_12 }}
+          GARMIN_SIMULATOR_13: ${{ secrets.GARMIN_SIMULATOR_13 }}
+          GARMIN_SIMULATOR_14: ${{ secrets.GARMIN_SIMULATOR_14 }}
+          GARMIN_SIMULATOR_15: ${{ secrets.GARMIN_SIMULATOR_15 }}
+          GARMIN_SIMULATOR_16: ${{ secrets.GARMIN_SIMULATOR_16 }}
+          GARMIN_SIMULATOR_17: ${{ secrets.GARMIN_SIMULATOR_17 }}
+          GARMIN_SIMULATOR_18: ${{ secrets.GARMIN_SIMULATOR_18 }}
+          GARMIN_SIMULATOR_19: ${{ secrets.GARMIN_SIMULATOR_19 }}
+          GARMIN_SIMULATOR_20: ${{ secrets.GARMIN_SIMULATOR_20 }}
+          GARMIN_SIMULATOR_21: ${{ secrets.GARMIN_SIMULATOR_21 }}
+          GARMIN_SIMULATOR_22: ${{ secrets.GARMIN_SIMULATOR_22 }}
+          GARMIN_SIMULATOR_23: ${{ secrets.GARMIN_SIMULATOR_23 }}
+          GARMIN_SIMULATOR_24: ${{ secrets.GARMIN_SIMULATOR_24 }}
+          GARMIN_SIMULATOR_25: ${{ secrets.GARMIN_SIMULATOR_25 }}
+          GARMIN_SIMULATOR_26: ${{ secrets.GARMIN_SIMULATOR_26 }}
+          GARMIN_SIMULATOR_27: ${{ secrets.GARMIN_SIMULATOR_27 }}
+          GARMIN_SIMULATOR_28: ${{ secrets.GARMIN_SIMULATOR_28 }}
+          GARMIN_SIMULATOR_29: ${{ secrets.GARMIN_SIMULATOR_29 }}
+          GARMIN_SIMULATOR_30: ${{ secrets.GARMIN_SIMULATOR_30 }}
+          GARMIN_SIMULATOR_31: ${{ secrets.GARMIN_SIMULATOR_31 }}
+          GARMIN_SIMULATOR_32: ${{ secrets.GARMIN_SIMULATOR_32 }}
+          GARMIN_SIMULATOR_33: ${{ secrets.GARMIN_SIMULATOR_33 }}
+          GARMIN_SIMULATOR_34: ${{ secrets.GARMIN_SIMULATOR_34 }}
+          GARMIN_SIMULATOR_35: ${{ secrets.GARMIN_SIMULATOR_35 }}
+          GARMIN_SIMULATOR_36: ${{ secrets.GARMIN_SIMULATOR_36 }}
+          GARMIN_SIMULATOR_37: ${{ secrets.GARMIN_SIMULATOR_37 }}
+          GARMIN_SIMULATOR_38: ${{ secrets.GARMIN_SIMULATOR_38 }}
+          GARMIN_SIMULATOR_39: ${{ secrets.GARMIN_SIMULATOR_39 }}
+          GARMIN_SIMULATOR_40: ${{ secrets.GARMIN_SIMULATOR_40 }}
           GARMIN_SIGNING_KEY_BASE64: ${{ secrets.GARMIN_SIGNING_KEY_BASE64 }}
           GARMIN_EDGE1050_PROFILE_1: ${{ secrets.GARMIN_EDGE1050_PROFILE_1 }}
           GARMIN_EDGE1050_PROFILE_2: ${{ secrets.GARMIN_EDGE1050_PROFILE_2 }}
         run: ./garmin-app/ci-release.ps1
 
       - name: Create GitHub release with application download
+        if: github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx --yes semantic-release@24

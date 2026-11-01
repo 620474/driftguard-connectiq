@@ -1,3 +1,10 @@
+## 2026-11-01 — restore real simulator release gate
+
+Owner reports the Release workflow failure and rejects skipping simulator tests.
+Provision the Edge 1050 simulator runtime privately, restore mandatory production
+and calibration tests, verify an actual hosted run, then commit/push main.
+Application metrics and FIT contracts stay unchanged.
+
 ## 2026-11-01 â€” offline model comparison
 
 Owner authorized the comparative lab study, then commit and push to main.
