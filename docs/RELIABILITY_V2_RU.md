@@ -1,3 +1,5 @@
+> Current follow-up: [v3 contract](RELEASE_GATE_V3.md). CV is off by default; v2 numbers below are historical.
+
 # Надёжность расчёта и FIT: контракт v2
 
 Изменения от 1 ноября 2026 по двум аудитам, базовый main

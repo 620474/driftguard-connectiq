@@ -16,6 +16,7 @@ try {
     $profile = $env:GARMIN_EDGE1050_PROFILE_1 + $env:GARMIN_EDGE1050_PROFILE_2
     [IO.File]::WriteAllBytes($profileZip,[Convert]::FromBase64String($profile))
     Expand-Archive -LiteralPath $profileZip -DestinationPath (Join-Path $env:APPDATA 'Garmin/ConnectIQ') -Force
+    & "$PSScriptRoot/test.ps1" -Sdk $Sdk -Key $keyPath
     & "$PSScriptRoot/build.ps1" -Sdk $Sdk -Key $keyPath
     if ($LASTEXITCODE -ne 0) { throw 'Production compiler failed' }
     $binary = Join-Path $PSScriptRoot 'bin/DriftGuard.prg'

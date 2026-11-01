@@ -1,3 +1,9 @@
+## 2026-11-01 — release gate and boundary follow-up
+
+Owner authorized CI gating, exact-60s HRR preservation and CV opt-in.
+Current contract: [RELEASE_GATE_V3.md](RELEASE_GATE_V3.md).
+No push or release.
+
 # Audit reliability fixes — 2026-11-01
 
 Owner requests all audit fixes in one local commit; no push or release.

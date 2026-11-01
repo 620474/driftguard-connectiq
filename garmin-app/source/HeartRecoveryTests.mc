@@ -63,3 +63,33 @@ function recoveryUsesThreeSecondWindows(logger as Test.Logger) as Boolean {
     Test.assertEqual(r.compactText(),"HRR60 +30");
     return true;
 }
+
+(:test)
+function recoveryExactBoundaryOrders(logger as Test.Logger) as Boolean {
+    for(var order=0;order<2;order+=1){
+        var f=new DriftGuardView(false);
+        f.onWorkoutStarted();
+        var info=new Activity.Info();info.timerState=Activity.TIMER_STATE_ON;
+        info.currentPower=300;info.currentHeartRate=160;
+        for(var i=0;i<30;i+=1){f.compute(info);}
+        f.onWorkoutStepComplete();
+        info.currentPower=100;info.currentHeartRate=130;
+        for(var j=0;j<59;j+=1){f.compute(info);}
+        var completed=new HeartRecovery();
+        if(order==0){
+            f.onWorkoutStepComplete();completed=f.terminalRecovery as HeartRecovery;f.compute(info);
+        } else {
+            f.compute(info);completed=f.recovery.terminalCopy();f.onWorkoutStepComplete();
+        }
+        Test.assertEqual(completed.parentId,1);Test.assertEqual(completed.delta as Float,30.0f);
+        Test.assert(f.terminalRecovery==null);
+    }
+    return true;
+}
+(:test)
+function variabilityIsExperimentalByDefault(logger as Test.Logger) as Boolean {
+    var e=new DriftEngine(0);
+    for(var i=0;i<60;i+=1){e.addSample(i%2==0 ? 100 : 300,140,true);}
+    Test.assert(!e.experimentalCV);Test.assertEqual(e.getSteadySeconds(),60);
+    return true;
+}

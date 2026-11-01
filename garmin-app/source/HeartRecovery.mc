@@ -2,10 +2,10 @@ import Toybox.Lang;
 
 // Raw 3-second end HR minus 3-second HR at +60 s. No normative classification.
 class HeartRecovery {
-    private var hr as Array<Number>;
-    private var power as Array<Number>;
-    private var next as Number = 0;
-    private var count as Number = 0;
+    var hr as Array<Number>;
+    var power as Array<Number>;
+    var next as Number = 0;
+    var count as Number = 0;
     var elapsed as Number = 0;
     var parentId as Number = 0;
     var recoveryPowerSum as Float = 0.0f;
@@ -14,10 +14,10 @@ class HeartRecovery {
     var delta as Float? = null;
     var activeDelta as Float? = null;
     var activeCollecting as Boolean = false;
-    private var activeLimit as Float = 0.0f;
+    var activeLimit as Float = 0.0f;
     var collecting as Boolean = false;
     var reason as String = "NEED EFFORT";
-    private var limit as Float = 0.0f;
+    var limit as Float = 0.0f;
     function initialize() { hr=new [8] as Array<Number>; power=new [8] as Array<Number>; reset(); }
     function reset() as Void { next=0; count=0; endHr=null; cancel("NEED EFFORT"); }
     function cancel(why as String) as Void { parentId=0;recoveryPowerSum=0.0f;collecting=false; activeCollecting=false; delta=null; activeDelta=null; elapsed=0; reason=why; }
@@ -78,6 +78,15 @@ class HeartRecovery {
         if (!collecting && !activeCollecting) { return; }
         for(var j=0;j<delay;j+=1){recoveryPowerSum+=at(power,j);}
         elapsed=delay;reason="COLLECTING";
+    }
+    function terminalCopy() as HeartRecovery {
+        var copy=new HeartRecovery();
+        for(var i=0;i<8;i+=1){copy.hr[i]=hr[i];copy.power[i]=power[i];}
+        copy.next=next;copy.count=count;copy.elapsed=elapsed;copy.parentId=parentId;
+        copy.recoveryPowerSum=recoveryPowerSum;copy.endHr=endHr;copy.delta=delta;copy.activeDelta=activeDelta;
+        copy.collecting=collecting;copy.activeCollecting=activeCollecting;
+        copy.limit=limit;copy.activeLimit=activeLimit;copy.reason=reason;
+        return copy;
     }
     function inlineText() as String {
         if (delta!=null) { return "R60" + delta.format("%+.0f"); }

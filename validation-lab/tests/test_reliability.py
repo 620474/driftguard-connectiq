@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ReliabilityTests(unittest.TestCase):
     def test_variable_minute_rejected(self):
-        e = Engine(Config(warmup=0))
+        e = Engine(Config(warmup=0,power_cv=.30))
         for i in range(3600):
             e.add(100 if i%2 else 300,140)
         self.assertEqual(e.steady_seconds,0)
@@ -105,10 +105,11 @@ class ReliabilityTests(unittest.TestCase):
         extras=extras.split('    (:calibration)',1)[0]
         pattern=r'createField\("[^"\n]+",\s*(\d+),\s*FitContributor.DATA_TYPE_(\w+),\s*\{:mesgType => FitContributor.MESG_TYPE_(\w+)'
         sizes={'FLOAT':4,'UINT8':1,'UINT16':2,'SINT16':2,'UINT32':4}
-        for source,expected in [(base+extras,{'RECORD':32,'SESSION':23}),
+        for source,expected in [(base+extras,{'RECORD':31,'SESSION':23}),
                                 (base+cal,{'RECORD':32,'SESSION':24})]:
             fields=re.findall(pattern,source)
             self.assertEqual(len({i for i,t,m in fields}),len(fields))
+            self.assertLessEqual(sum(m=='RECORD' for i,t,m in fields),16)
             self.assertEqual({m:sum(sizes[t] for i,t,k in fields if k==m) for m in expected},expected)
 
     def test_report_uses_input_and_handles_empty_cohort(self):
@@ -141,3 +142,27 @@ class ReliabilityTests(unittest.TestCase):
         actual=extract_repetitions(messages)
         self.assertEqual(actual['repetitions'],[])
         self.assertIn('ambiguous duplicate production developer fields',actual['issues'])
+
+    def test_cv_is_opt_in(self):
+        e=Engine(Config(warmup=0))
+        for i in range(60):e.add(100 if i%2 else 300,140)
+        self.assertEqual(e.steady_seconds,60)
+
+    def test_schema3_recovery_survives_next_effort(self):
+        messages=self.messages()
+        messages[0]['fields']['dg_schema_version']=3
+        messages[0]['fields']['dg_rep_count']=2
+        for f in messages[0]['developer_fields']:
+            f['value']=messages[0]['fields'][f['name']]
+        def record(identity,parent=0,hrr=-32768):
+            values=dict(dg_rep_id=identity,dg_rep_evt=1,dg_rep_s=60,dg_rep_w=300,
+                        dg_rep_src=3,dg_rep_quality=0,dg_rep_valid_s=60,dg_rep_end_s=60*identity,
+                        dg_hrr_parent=parent,dg_rep_hrr=hrr,dg_rep_hrr_active=hrr,dg_rep_recovery_w=100)
+            return dict(type='record',fields=values,developer_fields=[dict(name=k,value=v,application_id=PRODUCTION_APP_ID)
+                        for k,v in values.items()])
+        for late in (False,True):
+            rows=[record(1),record(2,0 if late else 1,-32768 if late else 30),record(2,1,30)]
+            result=extract_repetitions([messages[0]]+rows)
+            self.assertEqual(result['issues'],[])
+            self.assertEqual(result['repetitions'][0]['hrr60_bpm'],30)
+            self.assertIsNone(result['repetitions'][1]['hrr60_bpm'])

@@ -7,7 +7,7 @@ def configs():
     base=Config()
     yield 'current',base
     for field,values in dict(warmup=[0,10,15,20,30],recovery=[0,1,2,3],median=['current','prior','rolling60','fixed'],
-                             power_cv=[.2,.3,.4,1e6],resume_gate=[False,True],band=[10,15,20,25],valid=[42,48,54],mismatch=[2,3,5,7.5,10]).items():
+                             power_cv=[.2,.3,.4],resume_gate=[False,True],band=[10,15,20,25],valid=[42,48,54],mismatch=[2,3,5,7.5,10]).items():
         for value in values:
             c=replace(base,**{field:value})
             if c!=base:

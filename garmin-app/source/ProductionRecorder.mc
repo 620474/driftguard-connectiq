@@ -20,7 +20,7 @@ class ProductionRecorder {
     private var mSessionPowerChangeField as FitContributor.Field? = null;
     private var mSessionCompatField as FitContributor.Field? = null;
 
-    // Schema 2: base RECORD 11 B + repetitions 21 B = 32 B.
+    // Schema 3: base RECORD 11 B + repetitions/HRR 20 B = 31 B.
     // Base SESSION 14 B + metadata 9 B = 23 B. Calibration excludes extras.
     private var extra as Array<FitContributor.Field> = [];
     private var ready as Boolean = false;
@@ -84,7 +84,7 @@ class ProductionRecorder {
             {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "mode"}));
         extra.add(field.createField("dg_rep_hrr", 18, FitContributor.DATA_TYPE_SINT16,
             {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"}));
-        extra.add(field.createField("dg_rep_evt", 19, FitContributor.DATA_TYPE_UINT8,
+        extra.add(field.createField("dg_hrr_parent", 19, FitContributor.DATA_TYPE_UINT16,
             {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "event"}));
         extra.add(field.createField("dg_rep_hrr_active", 21, FitContributor.DATA_TYPE_SINT16,
             {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "bpm"}));
@@ -102,8 +102,9 @@ class ProductionRecorder {
             {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "s"}));
         extra.add(field.createField("dg_rep_recovery_w", 29, FitContributor.DATA_TYPE_UINT16,
             {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "W"}));
-        extra.add(field.createField("dg_rep_end_s", 30, FitContributor.DATA_TYPE_UINT32,
+        extra.add(field.createField("dg_rep_end_s", 30, FitContributor.DATA_TYPE_UINT16,
             {:mesgType => FitContributor.MESG_TYPE_RECORD, :units => "s"}));
+
     }
     (:calibration)
     function initializeIntervals(field as WatchUi.DataField) as Void {}
@@ -127,8 +128,7 @@ class ProductionRecorder {
             (mSessionCompatField as FitContributor.Field).setData(UNAVAILABLE);
             for(var i=0;i<extra.size();i+=1){extra[i].setData(0);}
             if(extra.size()>0){
-                extra[4].setData(-32768);extra[6].setData(-32768);
-                extra[7].setData(2);extra[8].setData(UNAVAILABLE);
+                extra[7].setData(3);extra[8].setData(UNAVAILABLE);
                 extra[13].setData(65535);
             }
         } catch(e){ready=false;}
@@ -152,22 +152,29 @@ class ProductionRecorder {
                 var valid=intervals.lastValidPower;
                 var quality=(intervals.lastInterrupted ? 1 : 0) |
                     (valid<duration ? 2 : 0) | (duration>=240 ? 4 : 0) |
-                    (duration>65534 ? 8 : 0);
+                    (duration>65534 || intervals.lastEndSeconds>65534 ? 8 : 0);
                 extra[0].setData(mRepCounter);
                 extra[1].setData(intervals.lastMean==null ? 65535 : (intervals.lastMean as Float).toNumber());
                 extra[2].setData(duration>65534 ? 65534 : duration);
                 extra[3].setData(intervals.source.equals("AUTO") ? 1 : intervals.source.equals("MANUAL") ? 2 : 3);
-                extra[4].setData(-32768);extra[6].setData(-32768);
-                extra[5].setData(1);extra[10].setData(mRepCounter);
+                extra[10].setData(mRepCounter);
                 extra[11].setData(quality);extra[12].setData(valid>65534 ? 65534 : valid);
-                extra[13].setData(65535);extra[14].setData(intervals.lastEndSeconds);
+                extra[14].setData(intervals.lastEndSeconds>65534 ? 65534 : intervals.lastEndSeconds);
             }
-            if(mRepCounter>0 && recovery.parentId==lastCompletion){
-                if(recovery.delta!=null){extra[4].setData((recovery.delta as Float).toNumber());extra[5].setData(2);}
-                if(recovery.activeDelta!=null){extra[6].setData((recovery.activeDelta as Float).toNumber());extra[5].setData(3);}
-                var watts=recovery.meanRecoveryPower();
-                if(watts!=null){extra[13].setData(watts.toNumber());}
-            }
+            onRecovery(recovery);
+        } catch(e){ready=false;}
+    }
+
+    // Independent held channel: publishing rep N+1 cannot erase HRR for N.
+    function onRecovery(recovery as HeartRecovery) as Void {
+        if(!ready || extra.size()==0 || recovery.parentId<=0 || recovery.parentId>mRepCounter){return;}
+        if(recovery.delta==null && recovery.activeDelta==null){return;}
+        try {
+            extra[4].setData(recovery.delta==null ? -32768 : (recovery.delta as Float).toNumber());
+            extra[6].setData(recovery.activeDelta==null ? -32768 : (recovery.activeDelta as Float).toNumber());
+            var watts=recovery.meanRecoveryPower();
+            extra[13].setData(watts==null ? 65535 : watts.toNumber());
+            extra[5].setData(recovery.parentId);
         } catch(e){ready=false;}
     }
 

@@ -22,6 +22,7 @@ class DriftGuardView extends WatchUi.DataField {
     private const FULL_HR_Y = 0.845;
     var intervals as IntervalSession;
     var recovery as HeartRecovery;
+    var terminalRecovery as HeartRecovery? = null;
     var intervalHistory as IntervalHistory;
     var intervalScreen as Boolean = false;
     // Garmin's usual zone colors: gray, blue, green, orange, red, then yellow/purple
@@ -108,7 +109,14 @@ class DriftGuardView extends WatchUi.DataField {
         var isTimerRunning = info.timerState == Activity.TIMER_STATE_ON;
         driftEngine.addSample(power, currentHeartRate, isTimerRunning);
         intervalHistory.add(power,currentHeartRate,isTimerRunning);
+        if(terminalRecovery!=null){
+            var pending=terminalRecovery as HeartRecovery;
+            pending.sample(currentHeartRate,power,isTimerRunning);
+            recorder.onRecovery(pending);
+            terminalRecovery=null;
+        }
         recovery.sample(currentHeartRate,power,isTimerRunning);
+        recorder.onRecovery(recovery);
         var priorEnd=intervals.automatic.detectedEnd;
         var priorSequence=intervals.automatic.sequence;
         intervals.addSample(power, isTimerRunning);
@@ -130,7 +138,7 @@ class DriftGuardView extends WatchUi.DataField {
     function onTimerReset() as Void {
         driftEngine.reset();
         intervals.reset();
-        recovery.reset();
+        recovery.reset();terminalRecovery=null;
         intervalHistory.reset();
         recorder.reset();
         mPowerWindowCount = 0;
@@ -146,13 +154,19 @@ class DriftGuardView extends WatchUi.DataField {
         } catch (e) {}
     }
 
-    function onWorkoutStarted() as Void { intervals.startWorkout(); recovery.reset(); }
+    function onWorkoutStarted() as Void { intervals.startWorkout(); recovery.reset();terminalRecovery=null; }
     function onWorkoutStepComplete() as Void { intervalBoundary(true); }
     private function intervalBoundary(workout as Boolean) as Void {
         var explicitSource=intervals.source.equals("WORKOUT") || intervals.source.equals("MANUAL");
         var oldSequence=intervals.sequence;
         var oldSeconds=intervals.seconds;
         var oldValid=intervals.validPower;
+        if(explicitSource && oldSeconds>0 && !(intervals.source.equals("WORKOUT") && !workout)){
+            recorder.onRecovery(recovery);
+            if(recovery.elapsed==59 && (recovery.collecting || recovery.activeCollecting)){
+                terminalRecovery=recovery.terminalCopy();
+            }
+        }
         intervals.boundary(workout);
         if (explicitSource && oldSeconds>0 && intervals.sequence!=oldSequence) {
             if (oldValid==oldSeconds && !intervals.lastInterrupted) { recovery.begin(0,intervals.lastMean,intervals.lastSeconds); recovery.parentId=intervals.completionId; }

@@ -51,7 +51,7 @@ class Config:
     valid: int = 48
     mismatch: float = 5.
     median: str = 'current'
-    power_cv: float = 0.30
+    power_cv: float | None = None
     resume_gate: bool = True
 
 
@@ -129,7 +129,7 @@ class Engine:
                     pool = self.powers[:1]
                 ref = self.median(pool)
                 inband = p*100 >= ref*(100-self.c.band) and p*100 <= ref*(100+self.c.band)
-                stable = sum(p*p for p,h in good)/n <= (ps/n)**2 * (1+self.c.power_cv**2)
+                stable = self.c.power_cv is None or sum(p*p for p,h in good)/n <= (ps/n)**2 * (1+self.c.power_cv**2)
                 inband = inband and stable and not self.interrupted
                 reason = 'power out of band'
                 if not stable: reason = 'variable power'

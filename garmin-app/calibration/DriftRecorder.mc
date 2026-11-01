@@ -21,9 +21,9 @@ class DriftRecorder extends ProductionRecorder {
             diagnostics.add(field.createField("dg_compat_power_sum", 17, FitContributor.DATA_TYPE_UINT32, {:mesgType => FitContributor.MESG_TYPE_RECORD}));
             diagnostics.add(field.createField("dg_compat_hr_sum", 18, FitContributor.DATA_TYPE_UINT16, {:mesgType => FitContributor.MESG_TYPE_RECORD}));
             field.createField("dg_algo_version", 19, FitContributor.DATA_TYPE_UINT16,
-                {:mesgType => FitContributor.MESG_TYPE_SESSION}).setData(2);
+                {:mesgType => FitContributor.MESG_TYPE_SESSION}).setData(3);
             field.createField("dg_config_crc", 20, FitContributor.DATA_TYPE_UINT32,
-                {:mesgType => FitContributor.MESG_TYPE_SESSION}).setData(3866173107l);
+                {:mesgType => FitContributor.MESG_TYPE_SESSION}).setData(1914809483l);
             bucketWidth = field.createField("dg_bucket_width", 21, FitContributor.DATA_TYPE_UINT16,
                 {:mesgType => FitContributor.MESG_TYPE_SESSION});
             compatWidth = field.createField("dg_compat_width", 22, FitContributor.DATA_TYPE_UINT16,

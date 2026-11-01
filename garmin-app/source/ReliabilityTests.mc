@@ -3,7 +3,7 @@ import Toybox.Test;
 
 (:test)
 function rejectHiddenIntervals(logger as Test.Logger) as Boolean {
-    var e=new DriftEngine(0);
+    var e=new DriftEngine(0);e.experimentalCV=true;
     for(var i=0;i<3600;i+=1){e.addSample(i%2==0 ? 100 : 300,140,true);}
     Test.assertEqual(e.getSteadySeconds(),0);
     Test.assertEqual(e.getState(METRIC_RIDE),DRIFT_NOT_STEADY);

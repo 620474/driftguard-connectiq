@@ -1,3 +1,5 @@
+> Current follow-up: [v3 contract](../docs/RELEASE_GATE_V3.md). CV is off by default; v2 numbers below are historical.
+
 ## Reliability v2
 
 Current contracts and limits: [Russian specification](../docs/RELIABILITY_V2_RU.md).

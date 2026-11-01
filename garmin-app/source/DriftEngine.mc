@@ -68,6 +68,7 @@ class DriftEngine {
 
     // The minute being collected.
     var mSecond as Number = 0;
+    var experimentalCV as Boolean = false;
     var mPowerSquares as Float = 0.0f;
     var mPauseSeen as Boolean = false;
     var mMinuteInterrupted as Boolean = false;
@@ -297,7 +298,7 @@ class DriftEngine {
                 addToHistogram(minutePower);
                 var median = medianPower();
                 var mean=mPowerSum.toFloat()/mValidSeconds;
-                var stable=mPowerSquares/mValidSeconds <= mean*mean*1.09f && !mMinuteInterrupted;
+                var stable=(!experimentalCV || mPowerSquares/mValidSeconds <= mean*mean*1.09f) && !mMinuteInterrupted;
                 inBand = stable && minutePower * 100 >= median * (100 - STEADY_BAND_PERCENT) &&
                     minutePower * 100 <= median * (100 + STEADY_BAND_PERCENT);
             }

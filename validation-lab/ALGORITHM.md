@@ -1,3 +1,5 @@
+> Current follow-up: [v3 contract](../docs/RELEASE_GATE_V3.md). CV is off by default; v2 numbers below are historical.
+
 Current algorithm version: 2. In addition to the historical algorithm below,
 steady requires within-minute positive-power CV <=30%, valid sensor ranges,
 and rejection of the first resumed minute plus three recovery minutes.

@@ -98,14 +98,14 @@ def extract_repetitions(messages):
     sessions = [m.get('fields', {}) for m in messages if m.get('type') == 'session']
     versions = {m['dg_schema_version'] for m in sessions if 'dg_schema_version' in m}
     schema = next(iter(versions)) if len(versions) == 1 else None
-    if versions and (len(versions) != 1 or schema != 2):
+    if versions and (len(versions) != 1 or schema not in (2,3)):
         return dict(repetitions=[], issues=errors+['unsupported repetition schema'], provenance=provenance)
     for message in messages:
         if message.get('type') != 'record':
             continue
         values = message.get('fields', {})
         rep_id = values.get('dg_rep_id')
-        event = values.get('dg_rep_evt')
+        event = 1 if schema == 3 else values.get('dg_rep_evt')
         if not isinstance(rep_id, int) or not isinstance(event, int) or rep_id <= 0:
             continue
         marker = (rep_id, event)
@@ -117,7 +117,7 @@ def extract_repetitions(messages):
             power = values.get('dg_rep_w')
             quality = values.get('dg_rep_quality')
             valid = values.get('dg_rep_valid_s')
-            if schema == 2 and not (isinstance(quality,int) and 0 <= quality <= 15 and
+            if schema in (2,3) and not (isinstance(quality,int) and 0 <= quality <= 15 and
                     isinstance(valid,int) and isinstance(duration,int) and 0 <= valid <= duration and
                     isinstance(values.get('dg_rep_end_s'),int) and
                     (valid == duration or quality & 2)):
@@ -126,7 +126,7 @@ def extract_repetitions(messages):
             source = values.get('dg_rep_src')
             if not (isinstance(duration, int) and duration > 0 and
                     (isinstance(power, (int, float)) and 0 <= power <= 10000 or
-                     schema == 2 and power is None and valid == 0) and source in (1, 2, 3)):
+                     schema in (2,3) and power is None and valid == 0) and source in (1, 2, 3)):
                 errors.append(f'invalid effort fields: {rep_id}')
                 continue
             if rep_id in by_id:
@@ -155,6 +155,23 @@ def extract_repetitions(messages):
                 errors.append(f'invalid HRR: {rep_id}')
         else:
             errors.append(f'unknown repetition event: {event}')
+    if schema == 3:
+        seen_recovery=set()
+        for message in messages:
+            if message.get('type')!='record':continue
+            values=message.get('fields',{})
+            parent=values.get('dg_hrr_parent')
+            if not isinstance(parent,int) or parent<=0:continue
+            marker=(parent,values.get('dg_rep_hrr'),values.get('dg_rep_hrr_active'))
+            if marker in seen_recovery:continue
+            seen_recovery.add(marker)
+            item=by_id.get(parent)
+            if item is None:
+                errors.append(f'HRR without effort: {parent}');continue
+            for field,key in [('dg_rep_hrr','hrr60_bpm'),('dg_rep_hrr_active','active_hrr60_bpm')]:
+                value=values.get(field)
+                if isinstance(value,(int,float)) and -300<=value<=300:item[key]=value
+            item['recovery_power_w']=values.get('dg_rep_recovery_w')
     ids = [rep['id'] for rep in reps]
     if ids and ids[0] != 1:
         errors.append(f'possible missed initial effort(s): first id {ids[0]}')

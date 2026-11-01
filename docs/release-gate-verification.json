@@ -1,0 +1,52 @@
+{
+  "base_commit": "ceeabae8a903e4db571d85a2901a823f4eb3a24d",
+  "sdk": "9.3.0",
+  "python_passed": 92,
+  "production_passed": 54,
+  "calibration_passed": 57,
+  "local_ci_gate": "PASS: actual test.ps1 invocation",
+  "failure_gate": "PASS: compile failure and missing/native-crash result blocked release",
+  "ordinary_builds": [
+    "production",
+    "calibration"
+  ],
+  "fit_runtime": "startup/reset/effort-and-HRR writes ready",
+  "fit_schema": 3,
+  "calibration_algorithm": 3,
+  "config_crc32": 1914809483,
+  "record_bytes": 31,
+  "session_bytes": 23,
+  "record_field_count": 16,
+  "archive": {
+    "files": 123,
+    "baseline": "f5c48ef9063bb411ad6a36088ca489a73659e62e",
+    "kind": "offline replay; not recorded app values",
+    "ride": {
+      "COLLECTING": 10,
+      "WARMUP": 14,
+      "NOT_STEADY": 93,
+      "VALID": 6
+    },
+    "last60": {
+      "COLLECTING": 18,
+      "WARMUP": 14,
+      "NOT_STEADY": 90,
+      "VALID": 1
+    },
+    "totals": {
+      "old_steady": 2461,
+      "steady": 2029,
+      "old_auto": 2111,
+      "auto": 1547,
+      "sustained": 42,
+      "partial": 10,
+      "active_tail": 0
+    }
+  },
+  "caveats": [
+    "Hosted GitHub Actions not executed (no push)",
+    "No physical Edge or physical FIT round trip",
+    "CV remains an opt-in engineering experiment",
+    "HTTP mock ResourceWarnings remain"
+  ]
+}
