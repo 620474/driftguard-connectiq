@@ -1,3 +1,13 @@
+## 2026-11-01 — hosted simulator release gate restored
+
+Complete Edge 1050 runtime assets and WW fonts are provisioned through private
+GitHub Environment secrets. Production and calibration execution is mandatory
+again; no simulator skip remains. Hosted validation run [41339749884](https://github.com/620474/driftguard-connectiq/actions/runs/41339749884)
+passed 110 Python tests, 54 production Monkey C tests and 57 calibration tests,
+then built the signed production PRG. Logs are retained as an Actions artifact.
+Application calculations and FIT schema are unchanged. Physical Edge validation
+is still separate. See [CI provisioning and gates](RELEASE_CI.md).
+
 ## 2026-11-01 â€” offline model comparison
 
 Owner authorized the comparative lab study, then commit and push to main.

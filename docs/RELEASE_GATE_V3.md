@@ -1,3 +1,7 @@
+Current hosted release gate and provisioning: [RELEASE_CI.md](RELEASE_CI.md).
+Both simulator suites were executed successfully in hosted run 41339749884.
+Historical implementation notes follow.
+
 # Release gate, HRR boundary and experimental CV — v3
 
 Follow-up to ceeabae8a903e4db571d85a2901a823f4eb3a24d, authorized by owner.

@@ -26,6 +26,7 @@ developer_key*
 *.log
 *.tmp
 *.bak
+__pycache__/
 
 # Future JS/TS tooling (not used in MVP yet)
 node_modules/

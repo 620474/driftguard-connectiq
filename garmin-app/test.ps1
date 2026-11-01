@@ -27,7 +27,9 @@ foreach ($variant in @('production', 'calibration')) {
         $log = ''
         try {
             Write-Host "Starting $variant simulator attempt $attempt/2 (timeout $TimeoutSeconds seconds)"
-            $sim = Start-Process -FilePath (Join-Path $Sdk 'bin/simulator.exe') -WorkingDirectory (Join-Path $Sdk 'bin') -WindowStyle Hidden -PassThru
+            $sim = Start-Process -FilePath (Join-Path $Sdk 'bin/simulator.exe') -WorkingDirectory (Join-Path $Sdk 'bin') -WindowStyle Hidden -PassThru `
+                -RedirectStandardOutput (Join-Path $Output "$variant.simulator-$attempt.stdout.log") `
+                -RedirectStandardError (Join-Path $Output "$variant.simulator-$attempt.stderr.log")
             Start-Sleep -Seconds 6
             if ($sim.HasExited) { throw "$variant simulator exited before test launch" }
             $info = [Diagnostics.ProcessStartInfo]::new()
@@ -63,6 +65,8 @@ foreach ($variant in @('production', 'calibration')) {
                 continue
             }
             # Never retry or ignore a real test failure.
+            # MonkeyDoDeux can return nonzero even after its complete PASSED
+            # report (SDK 9.2.0); the test protocol is the authoritative result.
             if ($log -notmatch 'PASSED \(passed=[1-9][0-9]*, failed=0, errors=0\)' -or $log -match 'FAILED \(') {
                 throw "$variant tests did not pass; release blocked (see $logFile)"
             }
@@ -75,6 +79,12 @@ foreach ($variant in @('production', 'calibration')) {
             }
             if ($null -ne $sim -and -not $sim.HasExited) {
                 Stop-Process -Id $sim.Id -Force -ErrorAction SilentlyContinue
+            }
+            foreach ($stream in @('stdout', 'stderr')) {
+                $simLog = Join-Path $Output "$variant.simulator-$attempt.$stream.log"
+                if (Test-Path -LiteralPath $simLog) {
+                    Get-Content -LiteralPath $simLog -Tail 40 | ForEach-Object { Write-Host $_ }
+                }
             }
         }
     }
