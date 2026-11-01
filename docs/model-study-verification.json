@@ -1,0 +1,26 @@
+{
+  "base_commit": "06d79e3b872028809c5f25564a43a0a546a1f01f",
+  "source_fingerprint": "446ca1069cb43327004c218bee32e8fdec939c6402e5b18e092e8f3c6e2f3240",
+  "canonical_lf_fingerprint": "939cca0acb87f1e667e7539d562d631409b7435689d846f20598a72b520f81ac",
+  "source_hash_mode": "source_fingerprint is checkout bytes; canonical_lf_fingerprint normalises text line endings",
+  "python": "3.14.7",
+  "tests_passed": 106,
+  "synthetic_protocols": 15,
+  "lag_variants": 3,
+  "original_fit_files": 123,
+  "sha_and_size_matches": 123,
+  "crc_checked": 123,
+  "independent_real_labels": 0,
+  "late_split_is_retrospective": true,
+  "wheel_build": "PASS",
+  "wheel_sha256": "97a9db555ec2d1a6f5be49d30377749a561cf1abe133417ffe13cbac3cf47c58",
+  "native_production_build": "PASS; SDK 9.3.0, edge1050, type checking level 3; Monkey C unchanged",
+  "blind_review_js_syntax": "PASS: node --check",
+  "limitations": [
+    "Unknown true physiological drift and real detector precision/recall",
+    "No physical Edge test or new FIT round trip in this lab-only change",
+    "Previous hosted Release run timed out in simulator; Python CI passed",
+    "HTTP mock ResourceWarnings remain; Python tests pass"
+  ],
+  "render_sha256": "90e432b1c7eaf96a78dc892eb1302d7d2fec8b67a7a504f3160b2368a81cc7cf"
+}

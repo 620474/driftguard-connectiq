@@ -1,3 +1,11 @@
+## Comparative model study
+
+See [protocol and commands](../docs/MODEL_STUDY_PROTOCOL_RU.md) and
+[anonymised results](../docs/MODEL_COMPARISON_RU.md). `driftlab.model_study` and
+`driftlab.model_report` are offline experiments, separate from production replay.
+They do not change the Edge calculations or FIT schema. A real accuracy score
+requires complete independent labels; otherwise the result remains unknown.
+
 > Current follow-up: [v3 contract](../docs/RELEASE_GATE_V3.md). CV is off by default; v2 numbers below are historical.
 
 ## Reliability v2

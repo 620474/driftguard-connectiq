@@ -1,3 +1,12 @@
+## 2026-11-01 — offline model comparison
+
+Owner authorized the comparative lab study, then commit and push to main.
+Scope: frozen DRIFT/AUTO/HRR candidates, synthetic schedules, private 123-FIT
+comparison, independent-label import and blind-review packet. No production model
+replacement. Protocol: [MODEL_STUDY_PROTOCOL_RU.md](MODEL_STUDY_PROTOCOL_RU.md).
+Source settings and individual ride outputs remain local; only anonymised results
+are committed. Earlier no-push instructions below are historical.
+
 ## 2026-11-01 — release gate and boundary follow-up
 
 Owner authorized CI gating, exact-60s HRR preservation and CV opt-in.
